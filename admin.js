@@ -1,79 +1,3 @@
-// WebSocket connection for real-time admin sync
-let adminWs = null;
-let adminConnected = false;
-
-function connectAdminWebSocket() {
-    try {
-        adminWs = new WebSocket('ws://localhost:3000');
-        
-        adminWs.onopen = () => {
-            console.log('🔌 Admin WebSocket connected');
-            adminConnected = true;
-            showAdminConnectionStatus('Connected', 'success');
-            
-            // Request current orders
-            adminWs.send(JSON.stringify({ type: 'get_orders' }));
-        };
-        
-        adminWs.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'orders_update') {
-                    // Update local storage with server data
-                    localStorage.setItem('donkomi-orders', JSON.stringify(data.orders));
-                    console.log('📦 Admin received orders update:', data.orders.length);
-                    
-                    // Refresh dashboard if on dashboard tab
-                    if (document.getElementById('dashboard-tab').classList.contains('active')) {
-                        loadDashboardData();
-                    } else if (document.getElementById('orders-tab').classList.contains('active')) {
-                        loadOrdersData();
-                    }
-                }
-            } catch (error) {
-                console.error('Error parsing admin WebSocket message:', error);
-            }
-        };
-        
-        adminWs.onclose = () => {
-            console.log('🔌 Admin WebSocket disconnected');
-            adminConnected = false;
-            showAdminConnectionStatus('Disconnected', 'error');
-            
-            // Try to reconnect after 5 seconds
-            setTimeout(connectAdminWebSocket, 5000);
-        };
-        
-        adminWs.onerror = (error) => {
-            console.error('Admin WebSocket error:', error);
-            showAdminConnectionStatus('Connection Error', 'error');
-        };
-    } catch (error) {
-        console.error('Failed to connect admin WebSocket:', error);
-        showAdminConnectionStatus('Connection Failed', 'error');
-    }
-}
-
-function showAdminConnectionStatus(message, type) {
-    const statusDiv = document.getElementById('admin-connection-status') || createAdminConnectionStatusElement();
-    statusDiv.textContent = message;
-    statusDiv.className = `admin-connection-status ${type}`;
-}
-
-function createAdminConnectionStatusElement() {
-    const statusDiv = document.createElement('div');
-    statusDiv.id = 'admin-connection-status';
-    statusDiv.className = 'admin-connection-status';
-    
-    // Add to admin header
-    const headerRight = document.querySelector('.header-right');
-    if (headerRight) {
-        headerRight.appendChild(statusDiv);
-    }
-    
-    return statusDiv;
-}
-
 // Admin Portal JavaScript
 
 // Check if user is already logged in
@@ -440,19 +364,6 @@ function updateOrderStatus(orderId, newStatus) {
         // Update local storage
         localStorage.setItem('donkomi-orders', JSON.stringify(orders));
         
-        // Send update to server via WebSocket
-        if (adminConnected && adminWs && adminWs.readyState === WebSocket.OPEN) {
-            adminWs.send(JSON.stringify({
-                type: 'update_order_status',
-                orderId: orderId,
-                newStatus: newStatus
-            }));
-            console.log('📡 Status update sent via WebSocket');
-        } else {
-            // Fallback to REST API
-            updateOrderStatusViaAPI(orderId, newStatus);
-        }
-        
         showNotification(`Order ${orderId} status updated to ${newStatus}`, 'success');
         
         // Refresh data
@@ -462,25 +373,6 @@ function updateOrderStatus(orderId, newStatus) {
             loadOrdersData();
         }
     }
-}
-
-function updateOrderStatusViaAPI(orderId, newStatus) {
-    fetch(`/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: newStatus })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('📡 Status update sent via REST API');
-        }
-    })
-    .catch(error => {
-        console.error('Failed to update order status via API:', error);
-    });
 }
 
 // Filter Orders
@@ -822,7 +714,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Dashboard page
         setupDashboardEventListeners();
         loadDashboardData();
-        connectAdminWebSocket(); // Connect WebSocket on dashboard load
     }
 });
 

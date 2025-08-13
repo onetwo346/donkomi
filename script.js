@@ -1,63 +1,3 @@
-// WebSocket connection for real-time sync
-let ws = null;
-let isConnected = false;
-
-function connectWebSocket() {
-    try {
-        ws = new WebSocket('ws://localhost:3000');
-        
-        ws.onopen = () => {
-            console.log('🔌 WebSocket connected');
-            isConnected = true;
-            showConnectionStatus('Connected', 'success');
-        };
-        
-        ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'orders_update') {
-                    // Update local storage with server data
-                    localStorage.setItem('donkomi-orders', JSON.stringify(data.orders));
-                    console.log('📦 Orders updated from server:', data.orders.length);
-                }
-            } catch (error) {
-                console.error('Error parsing WebSocket message:', error);
-            }
-        };
-        
-        ws.onclose = () => {
-            console.log('🔌 WebSocket disconnected');
-            isConnected = false;
-            showConnectionStatus('Disconnected', 'error');
-            
-            // Try to reconnect after 5 seconds
-            setTimeout(connectWebSocket, 5000);
-        };
-        
-        ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            showConnectionStatus('Connection Error', 'error');
-        };
-    } catch (error) {
-        console.error('Failed to connect WebSocket:', error);
-        showConnectionStatus('Connection Failed', 'error');
-    }
-}
-
-function showConnectionStatus(message, type) {
-    const statusDiv = document.getElementById('connection-status') || createConnectionStatusElement();
-    statusDiv.textContent = message;
-    statusDiv.className = `connection-status ${type}`;
-}
-
-function createConnectionStatusElement() {
-    const statusDiv = document.createElement('div');
-    statusDiv.id = 'connection-status';
-    statusDiv.className = 'connection-status';
-    document.body.appendChild(statusDiv);
-    return statusDiv;
-}
-
 // Cart functionality
 class Cart {
     constructor() {
@@ -133,7 +73,7 @@ class Cart {
     }
 
     removeItem(id) {
-        this.items = this.items.filter(item => item.id !== id);
+        this.items = this.filter(item => item.id !== id);
         this.updateCart();
     }
 
@@ -322,36 +262,7 @@ class Cart {
         existingOrders.unshift(orderData);
         localStorage.setItem('donkomi-orders', JSON.stringify(existingOrders));
         
-        // Send to server via WebSocket for real-time sync
-        if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'new_order',
-                order: orderData
-            }));
-            console.log('📡 Order sent via WebSocket');
-        } else {
-            // Fallback to REST API if WebSocket is not available
-            this.sendOrderViaAPI(orderData);
-        }
-    }
-    
-    sendOrderViaAPI(orderData) {
-        fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(orderData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('📡 Order sent via REST API');
-            }
-        })
-        .catch(error => {
-            console.error('Failed to send order via API:', error);
-        });
+        console.log('📦 Order saved to local storage:', orderData.orderId);
     }
 
     showOrderConfirmation(orderData) {
@@ -504,9 +415,6 @@ const cart = new Cart();
 function openAdminPortal() {
     window.open('admin.html', '_blank');
 }
-
-// Initialize WebSocket connection
-connectWebSocket();
 
 // Add CSS for additional components
 const additionalStyles = `
