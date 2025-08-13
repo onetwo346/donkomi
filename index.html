@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donkomi - Kumasi's Premium Marketplace</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-shopping-bag"></i>
+                <span>Donkomi</span>
+            </div>
+            <div class="nav-search">
+                <input type="text" placeholder="Search for products in Kumasi...">
+                <button><i class="fas fa-search"></i></button>
+            </div>
+            <div class="nav-actions">
+                <button class="cart-btn">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count">0</span>
+                </button>
+                <button class="user-btn">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Welcome to <span class="highlight">Donkomi</span></h1>
+            <p>Kumasi's trusted marketplace for quality products and amazing deals</p>
+            <div class="hero-buttons">
+                <button class="btn-primary">Shop Now</button>
+                <button class="btn-secondary">View Promotions</button>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="floating-card card-1">
+                <i class="fas fa-tshirt"></i>
+                <span>Fashion</span>
+            </div>
+            <div class="floating-card card-2">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </div>
+            <div class="floating-card card-3">
+                <i class="fas fa-shoe-prints"></i>
+                <span>Shoes</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="categories">
+        <div class="container">
+            <h2>Shop by Category</h2>
+            <div class="category-grid">
+                <div class="category-card">
+                    <div class="category-icon">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <h3>Household Items</h3>
+                    <p>Everything for your home</p>
+                </div>
+                <div class="category-card">
+                    <div class="category-icon">
+                        <i class="fas fa-tshirt"></i>
+                    </div>
+                    <h3>Clothes</h3>
+                    <p>Trendy fashion items</p>
+                </div>
+                <div class="category-card">
+                    <div class="category-icon">
+                        <i class="fas fa-shoe-prints"></i>
+                    </div>
+                    <h3>Shoes</h3>
+                    <p>Comfortable footwear</p>
+                </div>
+                <div class="category-card">
+                    <div class="category-icon">
+                        <i class="fas fa-gem"></i>
+                    </div>
+                    <h3>Accessories</h3>
+                    <p>Complete your look</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Products -->
+    <section class="featured-products">
+        <div class="container">
+            <h2>Featured Products</h2>
+            <div class="product-grid">
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=300&fit=crop" alt="Product">
+                        <div class="product-overlay">
+                            <button class="quick-view">Quick View</button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Premium Wireless Headphones</h3>
+                        <p class="product-category">Electronics</p>
+                        <div class="product-price">
+                            <span class="current-price">₵89.99</span>
+                            <span class="original-price">₵129.99</span>
+                        </div>
+                        <button class="add-to-cart">Add to Cart</button>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=300&fit=crop" alt="Product">
+                        <div class="product-overlay">
+                            <button class="quick-view">Quick View</button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Sport Running Shoes</h3>
+                        <p class="product-category">Footwear</p>
+                        <div class="product-price">
+                            <span class="current-price">₵59.99</span>
+                            <span class="original-price">₵79.99</span>
+                        </div>
+                        <button class="add-to-cart">Add to Cart</button>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=300&h=300&fit=crop" alt="Product">
+                        <div class="product-overlay">
+                            <button class="quick-view">Quick View</button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Modern Coffee Table</h3>
+                        <p class="product-category">Furniture</p>
+                        <div class="product-price">
+                            <span class="current-price">₵199.99</span>
+                            <span class="original-price">₵249.99</span>
+                        </div>
+                        <button class="add-to-cart">Add to Cart</button>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=300&h=300&fit=crop" alt="Product">
+                        <div class="product-overlay">
+                            <button class="quick-view">Quick View</button>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Designer Handbag</h3>
+                        <p class="product-category">Fashion</p>
+                        <div class="product-price">
+                            <span class="current-price">₵149.99</span>
+                            <span class="original-price">₵199.99</span>
+                        </div>
+                        <button class="add-to-cart">Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Promotions -->
+    <section class="promotions">
+        <div class="container">
+            <h2>Special Offers</h2>
+            <div class="promo-grid">
+                <div class="promo-card promo-large">
+                    <div class="promo-content">
+                        <h3>Clearance Sale</h3>
+                        <p>Up to 70% off on selected items</p>
+                        <button class="btn-primary">Shop Now</button>
+                    </div>
+                    <div class="promo-visual">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                </div>
+                <div class="promo-card">
+                    <div class="promo-content">
+                        <h3>New Arrivals</h3>
+                        <p>Fresh styles every week</p>
+                        <button class="btn-secondary">Explore</button>
+                    </div>
+                </div>
+                <div class="promo-card">
+                    <div class="promo-content">
+                        <h3>Free Delivery</h3>
+                        <p>On orders over ₵50 in Kumasi</p>
+                        <button class="btn-secondary">Learn More</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="newsletter">
+        <div class="container">
+            <div class="newsletter-content">
+                <h2>Stay Updated</h2>
+                <p>Get the latest deals and promotions delivered to your inbox</p>
+                <div class="newsletter-form">
+                    <input type="email" placeholder="Enter your email address">
+                    <button class="btn-primary">Subscribe</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Donkomi</h3>
+                    <p>Kumasi's trusted marketplace for quality products and amazing deals.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Contact</a></li>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Track Order</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Customer Service</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Returns</a></li>
+                        <li><a href="#">Shipping Info</a></li>
+                        <li><a href="#">Size Guide</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact Info</h4>
+                    <p><i class="fas fa-phone"></i> +233 24 123 4567</p>
+                    <p><i class="fas fa-envelope"></i> info@donkomi.com</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Adum, Kumasi, Ghana</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Donkomi. All rights reserved.</p>
+                <button class="admin-login-btn" onclick="openAdminPortal()">
+                    <i class="fas fa-lock"></i> Admin Portal
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Sidebar -->
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h3>Shopping Cart</h3>
+            <button class="close-cart" id="closeCart">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <!-- Cart items will be populated here -->
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span class="total-amount">₵0.00</span>
+            </div>
+            <button class="btn-primary checkout-btn">Checkout</button>
+        </div>
+    </div>
+
+    <!-- Cart Overlay -->
+    <div class="cart-overlay" id="cartOverlay"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
