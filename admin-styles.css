@@ -688,17 +688,81 @@ body {
         margin-left: 0;
     }
     
+    .admin-header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .admin-header p {
+        font-size: 0.75rem;
+    }
+    
+    .admin-name {
+        font-size: 0.75rem;
+    }
+    
+    .admin-role {
+        font-size: 0.65rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1.2rem;
+    }
+    
+    .stat-content p {
+        font-size: 0.75rem;
+    }
+    
+    .stat-change {
+        font-size: 0.65rem;
+    }
+    
+    .section-header h3 {
+        font-size: 1rem;
+    }
+    
+    .revenue-card h4 {
+        font-size: 0.7rem;
+    }
+    
+    .revenue-amount {
+        font-size: 1rem;
+    }
+    
+    .revenue-change {
+        font-size: 0.6rem;
+    }
+    
+    .orders-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .filter-group label {
+        font-size: 0.7rem;
+    }
+    
+    .filter-group select {
+        font-size: 0.7rem;
+    }
+    
+    .btn-primary, .btn-secondary {
+        font-size: 0.75rem;
+        padding: 0.5rem 1rem;
+    }
+    
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
     .revenue-cards {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
     
     .orders-controls {
         flex-direction: column;
         align-items: stretch;
+        gap: 1rem;
     }
     
     .orders-table-header,
@@ -710,19 +774,146 @@ body {
     .orders-table-header {
         display: none;
     }
-}
-
-@media (max-width: 480px) {
-    .admin-login-card {
-        padding: 2rem 1.5rem;
-    }
-    
-    .admin-header {
-        padding: 1rem;
-    }
     
     .tab-content {
         padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        font-size: 0.7rem;
+    }
+    
+    .admin-login-card {
+        padding: 1.5rem 1rem;
+    }
+    
+    .admin-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .admin-header p {
+        font-size: 0.75rem;
+    }
+    
+    .form-group label {
+        font-size: 0.75rem;
+    }
+    
+    .form-group input {
+        font-size: 0.75rem;
+    }
+    
+    .login-btn {
+        font-size: 0.75rem;
+    }
+    
+    .admin-header {
+        padding: 0.75rem;
+    }
+    
+    .admin-header h1 {
+        font-size: 1rem;
+    }
+    
+    .admin-header p {
+        font-size: 0.7rem;
+    }
+    
+    .admin-name {
+        font-size: 0.7rem;
+    }
+    
+    .admin-role {
+        font-size: 0.6rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 1rem;
+    }
+    
+    .stat-content p {
+        font-size: 0.7rem;
+    }
+    
+    .stat-change {
+        font-size: 0.6rem;
+    }
+    
+    .section-header h3 {
+        font-size: 0.9rem;
+    }
+    
+    .revenue-card h4 {
+        font-size: 0.65rem;
+    }
+    
+    .revenue-amount {
+        font-size: 0.9rem;
+    }
+    
+    .revenue-change {
+        font-size: 0.55rem;
+    }
+    
+    .orders-header h2 {
+        font-size: 1rem;
+    }
+    
+    .filter-group label {
+        font-size: 0.65rem;
+    }
+    
+    .filter-group select {
+        font-size: 0.65rem;
+    }
+    
+    .btn-primary, .btn-secondary {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .tab-content {
+        padding: 0.75rem;
+    }
+    
+    .stats-grid {
+        gap: 0.75rem;
+    }
+    
+    .revenue-cards {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 360px) {
+    body {
+        font-size: 0.65rem;
+    }
+    
+    .admin-header h1 {
+        font-size: 0.9rem;
+    }
+    
+    .admin-header h2 {
+        font-size: 1rem;
+    }
+    
+    .section-header h3 {
+        font-size: 0.8rem;
+    }
+    
+    .stat-content h3 {
+        font-size: 0.9rem;
+    }
+    
+    .orders-header h2 {
+        font-size: 0.9rem;
+    }
+    
+    .tab-content {
+        padding: 0.5rem;
     }
 }
 
