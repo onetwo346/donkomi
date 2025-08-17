@@ -28,13 +28,17 @@ class Cart {
             this.toggleCart();
         });
 
-        // Add to cart buttons
-        document.querySelectorAll('.add-to-cart').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const productCard = e.target.closest('.product-card');
-                const product = this.getProductFromCard(productCard);
-                this.addItem(product);
-            });
+        // Add to cart buttons (using event delegation for dynamic content)
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.add-to-cart')) {
+                e.preventDefault();
+                const button = e.target.closest('.add-to-cart');
+                const productCard = button.closest('.product-card');
+                if (productCard) {
+                    const product = this.getProductFromCard(productCard);
+                    this.addItem(product);
+                }
+            }
         });
 
         // Checkout button
@@ -72,9 +76,33 @@ class Cart {
         this.showNotification('Product added to cart!');
     }
 
+    showNotification(message, type = 'success') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+
+        // Create new notification
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
+
     removeItem(id) {
-        this.items = this.filter(item => item.id !== id);
+        this.items = this.items.filter(item => item.id !== id);
         this.updateCart();
+        this.showNotification('Item removed from cart');
     }
 
     updateQuantity(id, quantity) {
@@ -408,351 +436,723 @@ document.querySelectorAll('.category-card, .product-card, .promo-card').forEach(
     observer.observe(el);
 });
 
-// Initialize cart
-const cart = new Cart();
+// Initialize cart and load products on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const cart = new Cart();
+    window.cart = cart;
+    
+    // Load initial products (featured)
+    displayProducts('all');
+    
+    // Update category stats
+    updateCategoryStats();
+    
+    // Set initial active state for featured button
+    const featuredBtn = document.querySelector('.featured-btn');
+    if (featuredBtn) {
+        featuredBtn.classList.add('active');
+    }
+    
+    console.log('Page loaded, displaying featured products');
+});
+
+// Mobile menu functionality
+document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+    document.getElementById('mobileMenuOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+});
+
+document.querySelector('.close-mobile-menu').addEventListener('click', function() {
+    document.getElementById('mobileMenuOverlay').classList.remove('open');
+    document.body.style.overflow = 'auto';
+});
+
+document.getElementById('mobileMenuOverlay').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.remove('open');
+        document.body.style.overflow = 'auto';
+    }
+});
+
+// Category filtering functionality
+let currentCategory = 'all';
+let allProducts = [];
+
+// Comprehensive product database
+const productDatabase = {
+    'vitamins': [
+        { id: 1, name: "Vitamin C 1000mg Tablets", price: 45.99, originalPrice: 65.99, image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop", description: "High-potency Vitamin C for immune support", badge: "Popular" },
+        { id: 2, name: "Omega-3 Fish Oil Capsules", price: 89.99, originalPrice: 120.99, image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop", description: "Premium fish oil for heart health" },
+        { id: 3, name: "Multivitamin for Women", price: 67.50, originalPrice: 85.00, image: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=300&h=300&fit=crop", description: "Complete daily nutrition for women" },
+        { id: 4, name: "Vitamin D3 5000 IU", price: 32.99, originalPrice: 42.99, image: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=300&h=300&fit=crop", description: "Bone health and immune support" }
+    ],
+    'fragrances': [
+        { id: 5, name: "Chanel No. 5 Eau de Parfum", price: 299.99, originalPrice: 350.00, image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=300&h=300&fit=crop", description: "Classic French perfume", badge: "Premium" },
+        { id: 6, name: "Dior Sauvage Men's Cologne", price: 245.00, originalPrice: 280.00, image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&h=300&fit=crop", description: "Fresh and bold masculine scent" },
+        { id: 7, name: "Victoria's Secret Body Mist", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=300&h=300&fit=crop", description: "Light and refreshing body spray" },
+        { id: 8, name: "Tom Ford Black Orchid", price: 189.99, originalPrice: 220.00, image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300&h=300&fit=crop", description: "Luxurious unisex fragrance" }
+    ],
+    'face-care': [
+        { id: 9, name: "Cetaphil Daily Facial Cleanser", price: 25.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=300&h=300&fit=crop", description: "Gentle cleanser for all skin types", badge: "Best Seller" },
+        { id: 10, name: "Olay Regenerist Micro-Sculpting Cream", price: 78.99, originalPrice: 95.99, image: "https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=300&h=300&fit=crop", description: "Anti-aging moisturizer with peptides" },
+        { id: 11, name: "The Ordinary Hyaluronic Acid Serum", price: 18.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&h=300&fit=crop", description: "Intensive hydration serum", badge: "Trending" },
+        { id: 12, name: "Neutrogena Retinol Oil", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=300&h=300&fit=crop", description: "Anti-aging facial oil" }
+    ],
+    'hair-beauty': [
+        { id: 13, name: "L'Oréal Professional Shampoo", price: 35.99, originalPrice: 45.99, image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=300&h=300&fit=crop", description: "Professional salon-quality shampoo" },
+        { id: 14, name: "Dyson Hair Dryer Supersonic", price: 899.99, originalPrice: 1099.99, image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=300&h=300&fit=crop", description: "Fast drying with intelligent heat control", badge: "Premium" },
+        { id: 15, name: "Argan Oil Hair Treatment", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1559599189-7d5e31afd857?w=300&h=300&fit=crop", description: "Moroccan argan oil for hair repair" },
+        { id: 16, name: "Ceramic Hair Straightener", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1457972729786-0411a3b2b626?w=300&h=300&fit=crop", description: "Professional ceramic straightening iron" }
+    ],
+    'body-care': [
+        { id: 17, name: "Body Care Gift Set", price: 67.99, originalPrice: 79.99, image: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=300&h=300&fit=crop", description: "Complete body care routine" },
+        { id: 18, name: "Dove Deep Moisture Body Wash", price: 8.99, originalPrice: 12.99, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=300&fit=crop", description: "Nourishing body wash" },
+        { id: 19, name: "Bath & Body Works Lotion", price: 16.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=300&h=300&fit=crop", description: "Moisturizing body lotion" },
+        { id: 20, name: "Exfoliating Body Scrub", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1588159343745-445ae0ee6b94?w=300&h=300&fit=crop", description: "Sea salt body scrub" }
+    ],
+    'sexual-wellness': [
+        { id: 21, name: "Wellness Intimacy Kit", price: 54.99, originalPrice: 69.99, image: "https://images.unsplash.com/photo-1609205071652-0dfcc8b85dd8?w=300&h=300&fit=crop", description: "Complete wellness and care kit" },
+        { id: 22, name: "Personal Care Products", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1571019613540-996a0dba5ba6?w=300&h=300&fit=crop", description: "Premium personal care items" }
+    ],
+    'oral-care': [
+        { id: 23, name: "Oral-B Electric Toothbrush", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=300&h=300&fit=crop", description: "Professional clean with smart timer" },
+        { id: 24, name: "Whitening Toothpaste Set", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1609840114855-9755dfb8d542?w=300&h=300&fit=crop", description: "Professional whitening system" }
+    ],
+    'makeup': [
+        { id: 25, name: "MAC Lipstick Collection", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=300&h=300&fit=crop", description: "Professional lipstick set", badge: "Trending" },
+        { id: 26, name: "Eyeshadow Palette", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1583241800109-c8e0dea6b465?w=300&h=300&fit=crop", description: "120 color eyeshadow palette" }
+    ],
+    'tools-accessories': [
+        { id: 27, name: "Professional Hair Clipper Set", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=300&h=300&fit=crop", description: "Complete barbering kit" },
+        { id: 28, name: "Manicure Kit Professional", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1599948128421-4d4e4b1f3987?w=300&h=300&fit=crop", description: "Complete nail care set" }
+    ],
+    'tv-dvd': [
+        { id: 29, name: "Samsung 55\" 4K Smart TV", price: 1299.99, originalPrice: 1599.99, image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=300&h=300&fit=crop", description: "Crystal UHD with Tizen smart platform", badge: "Hot Deal" },
+        { id: 30, name: "Sony Blu-ray DVD Player", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1518855589321-c19800f7d692?w=300&h=300&fit=crop", description: "4K upscaling Blu-ray player" },
+        { id: 31, name: "LG OLED 65\" TV", price: 2899.99, originalPrice: 3299.99, image: "https://images.unsplash.com/photo-1567690187548-f07b1d7bf5a9?w=300&h=300&fit=crop", description: "Self-lit pixels for perfect blacks", badge: "Premium" },
+        { id: 32, name: "Universal Remote Control", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1558560557-7dbb98b4b3da?w=300&h=300&fit=crop", description: "Control all your devices" }
+    ],
+    'audio-music': [
+        { id: 33, name: "Bose QuietComfort Headphones", price: 349.99, originalPrice: 399.99, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop", description: "World-class noise cancellation", badge: "Popular" },
+        { id: 34, name: "Marshall Stanmore II Speaker", price: 449.99, originalPrice: 499.99, image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=300&h=300&fit=crop", description: "Iconic rock and roll speaker" },
+        { id: 35, name: "Audio-Technica Turntable", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop", description: "Professional direct-drive turntable" },
+        { id: 36, name: "Wireless Earbuds Pro", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=300&h=300&fit=crop", description: "Premium wireless earbuds" }
+    ],
+    'laptops-computers': [
+        { id: 37, name: "MacBook Pro 14\" M3", price: 3499.99, originalPrice: 3799.99, image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=300&fit=crop", description: "Latest M3 chip with 16GB RAM", badge: "New" },
+        { id: 38, name: "Dell XPS 13 Laptop", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=300&h=300&fit=crop", description: "Ultra-thin with InfinityEdge display" },
+        { id: 39, name: "Gaming Desktop PC RTX 4080", price: 2799.99, originalPrice: 3199.99, image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?w=300&h=300&fit=crop", description: "High-performance gaming rig", badge: "Gaming" },
+        { id: 40, name: "iPad Pro 12.9\"", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=300&h=300&fit=crop", description: "Professional tablet with M2 chip" }
+    ],
+    'electronics-accessories': [
+        { id: 41, name: "Smartphone Accessories Kit", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Complete phone accessory bundle" },
+        { id: 42, name: "Wireless Charger Pad", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1609691174988-9d7ec8d51d82?w=300&h=300&fit=crop", description: "Fast wireless charging pad" }
+    ],
+    'computer-accessories': [
+        { id: 43, name: "Wireless Gaming Mouse", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=300&h=300&fit=crop", description: "High-precision gaming mouse" },
+        { id: 44, name: "Mechanical Keyboard RGB", price: 149.99, originalPrice: 179.99, image: "https://images.unsplash.com/photo-1601445638532-3c6f6c3aa1d6?w=300&h=300&fit=crop", description: "Professional gaming keyboard" }
+    ],
+    'networking': [
+        { id: 45, name: "WiFi 6 Router", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=300&h=300&fit=crop", description: "High-speed mesh WiFi router" },
+        { id: 46, name: "Network Switch 8-Port", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Gigabit Ethernet switch" }
+    ],
+    'printers-scanners': [
+        { id: 47, name: "All-in-One Printer", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "Print, scan, copy with wireless" },
+        { id: 48, name: "Document Scanner", price: 199.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=300&h=300&fit=crop", description: "High-speed document scanner" }
+    ],
+    'security-surveillance': [
+        { id: 49, name: "Security Camera System", price: 599.99, originalPrice: 699.99, image: "https://images.unsplash.com/photo-1558002038-1055907df827?w=300&h=300&fit=crop", description: "4K security camera with night vision", badge: "Professional" },
+        { id: 50, name: "Smart Doorbell Camera", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=300&h=300&fit=crop", description: "Video doorbell with motion detection" }
+    ],
+    'computer-hardware': [
+        { id: 51, name: "GPU RTX 4070", price: 899.99, originalPrice: 999.99, image: "https://images.unsplash.com/photo-1591488320449-011701bb6704?w=300&h=300&fit=crop", description: "High-performance graphics card", badge: "Gaming" },
+        { id: 52, name: "SSD 1TB NVMe", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&h=300&fit=crop", description: "Ultra-fast storage drive" }
+    ],
+    'cars': [
+        { id: 53, name: "Toyota Camry 2023", price: 45999.99, originalPrice: 48999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Reliable sedan with hybrid option", badge: "Certified" },
+        { id: 54, name: "Honda Accord 2024", price: 42999.99, originalPrice: 45999.99, image: "https://images.unsplash.com/photo-1580274947049-80561d52b088?w=300&h=300&fit=crop", description: "Comfortable midsize sedan" },
+        { id: 55, name: "BMW 3 Series 2023", price: 78999.99, originalPrice: 82999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Luxury sports sedan", badge: "Luxury" }
+    ],
+    'motorcycles': [
+        { id: 56, name: "Yamaha YZF-R3 2024", price: 8999.99, originalPrice: 9499.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Sport bike for beginners" },
+        { id: 57, name: "Honda PCX 150 Scooter", price: 4299.99, originalPrice: 4699.99, image: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=300&h=300&fit=crop", description: "Fuel-efficient city scooter", badge: "Eco-Friendly" }
+    ],
+    'vehicle-parts': [
+        { id: 58, name: "Car Parts - Brake Pads", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&h=300&fit=crop", description: "Premium brake pads for Toyota" },
+        { id: 59, name: "Engine Oil Full Synthetic", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1471880197051-537cea7a1bb8?w=300&h=300&fit=crop", description: "High-performance motor oil" }
+    ],
+    'trucks-trailers': [
+        { id: 60, name: "Pickup Truck Ford F-150", price: 65999.99, originalPrice: 69999.99, image: "https://images.unsplash.com/photo-1567438999634-8a1cb2d7b149?w=300&h=300&fit=crop", description: "Heavy-duty pickup truck" }
+    ],
+    'buses': [
+        { id: 61, name: "City Bus Mercedes", price: 189999.99, originalPrice: 209999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "40-passenger city bus" }
+    ],
+    'construction-machinery': [
+        { id: 62, name: "Excavator CAT 320", price: 299999.99, originalPrice: 329999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Heavy-duty excavator" }
+    ],
+    'watercraft': [
+        { id: 63, name: "Fishing Boat with Motor", price: 15999.99, originalPrice: 17999.99, image: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=300&h=300&fit=crop", description: "25ft fishing boat with outboard motor" }
+    ],
+    'food-beverages': [
+        { id: 64, name: "Premium Ghanaian Cocoa Powder", price: 24.99, originalPrice: 29.99, image: "https://images.unsplash.com/photo-1511381939415-e44015466834?w=300&h=300&fit=crop", description: "100% pure Ghanaian cocoa", badge: "Local" },
+        { id: 65, name: "Shea Butter (Raw)", price: 18.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1585652757173-57de5e9fab42?w=300&h=300&fit=crop", description: "Unrefined shea butter from Northern Ghana", badge: "Organic" },
+        { id: 66, name: "Gari (Cassava Flakes)", price: 12.50, originalPrice: 15.00, image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop", description: "Traditional Ghanaian staple food" }
+    ],
+    'farm-machinery': [
+        { id: 67, name: "John Deere Compact Tractor", price: 25999.99, originalPrice: 28999.99, image: "https://images.unsplash.com/photo-1605371924599-2d0365da1ae0?w=300&h=300&fit=crop", description: "25HP compact utility tractor" },
+        { id: 68, name: "Irrigation Sprinkler System", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=300&h=300&fit=crop", description: "Automated farm irrigation system" }
+    ],
+    'feeds-supplements': [
+        { id: 69, name: "Corn Seeds (Hybrid)", price: 45.99, originalPrice: 52.99, image: "https://images.unsplash.com/photo-1551754655-cd27e38d2076?w=300&h=300&fit=crop", description: "High-yield corn seeds" },
+        { id: 70, name: "Fertilizer Organic", price: 29.99, originalPrice: 35.99, image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=300&h=300&fit=crop", description: "Natural organic fertilizer" }
+    ],
+    'farm-animals': [
+        { id: 71, name: "Dairy Cattle (Holstein)", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1563281577-a7be47e20db9?w=300&h=300&fit=crop", description: "Healthy dairy cow", badge: "Livestock" },
+        { id: 72, name: "Chickens (Layer Hens)", price: 25.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=300&h=300&fit=crop", description: "High-producing layer hens" }
+    ],
+    'electronics-accessories': [
+        { id: 73, name: "USB-C Cable 6ft", price: 19.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop", description: "Fast charging USB-C cable" },
+        { id: 74, name: "Wireless Charging Pad", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1515378791036-0648a814c963?w=300&h=300&fit=crop", description: "Fast wireless charging station", badge: "Popular" },
+        { id: 75, name: "Power Bank 20000mAh", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1609592913750-71717ee0ff3b?w=300&h=300&fit=crop", description: "High capacity portable charger" },
+        { id: 76, name: "Phone Car Mount", price: 24.99, originalPrice: 34.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Adjustable smartphone car holder" }
+    ],
+    'computer-accessories': [
+        { id: 77, name: "Mechanical Gaming Keyboard", price: 159.99, originalPrice: 199.99, image: "https://images.unsplash.com/photo-1541140532154-b024d705b90a?w=300&h=300&fit=crop", description: "RGB backlit mechanical keyboard", badge: "Gaming" },
+        { id: 78, name: "Gaming Mouse RGB", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=300&h=300&fit=crop", description: "High precision gaming mouse" },
+        { id: 79, name: "Monitor Stand Dual", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1616627547584-bf28cfeea7d5?w=300&h=300&fit=crop", description: "Adjustable dual monitor stand" },
+        { id: 80, name: "USB Hub 7-Port", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "High-speed USB 3.0 hub" }
+    ],
+    'networking': [
+        { id: 81, name: "WiFi 6 Router AX6000", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "High-speed WiFi 6 router", badge: "New" },
+        { id: 82, name: "Mesh WiFi System 3-Pack", price: 449.99, originalPrice: 549.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "Whole home mesh coverage" },
+        { id: 83, name: "Ethernet Switch 8-Port", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1516110833967-0b5716ca75d4?w=300&h=300&fit=crop", description: "Gigabit Ethernet switch" },
+        { id: 84, name: "WiFi Range Extender", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "Boost your WiFi signal" }
+    ],
+    'printers-scanners': [
+        { id: 85, name: "Canon PIXMA All-in-One Printer", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "Print, scan, copy wireless printer" },
+        { id: 86, name: "HP LaserJet Pro Printer", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "Fast laser printer for office", badge: "Professional" },
+        { id: 87, name: "Document Scanner Portable", price: 229.99, originalPrice: 279.99, image: "https://images.unsplash.com/photo-1589739900243-c0b20dc6c35f?w=300&h=300&fit=crop", description: "High-speed document scanner" },
+        { id: 88, name: "Photo Printer Professional", price: 449.99, originalPrice: 549.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "High-quality photo printing" }
+    ],
+    'security-surveillance': [
+        { id: 89, name: "Security Camera System 8CH", price: 599.99, originalPrice: 699.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Complete 8-camera security system", badge: "Professional" },
+        { id: 90, name: "Wireless Security Camera", price: 149.99, originalPrice: 179.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "WiFi security camera with night vision" },
+        { id: 91, name: "Smart Doorbell Camera", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1586281010595-c1bda2c5cf15?w=300&h=300&fit=crop", description: "Video doorbell with 2-way audio" },
+        { id: 92, name: "Motion Sensor Alarm", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Wireless motion detection system" }
+    ],
+    'computer-hardware': [
+        { id: 93, name: "Graphics Card RTX 4070", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&h=300&fit=crop", description: "High-performance graphics card", badge: "Gaming" },
+        { id: 94, name: "32GB DDR5 RAM Kit", price: 349.99, originalPrice: 399.99, image: "https://images.unsplash.com/photo-1555617981-dac3880eac6e?w=300&h=300&fit=crop", description: "High-speed memory kit" },
+        { id: 95, name: "NVMe SSD 2TB", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&h=300&fit=crop", description: "Ultra-fast storage drive" },
+        { id: 96, name: "CPU Cooler RGB", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&h=300&fit=crop", description: "Liquid cooling system with RGB" }
+    ],
+    'vehicle-parts': [
+        { id: 97, name: "Car Engine Oil 5W-30", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&h=300&fit=crop", description: "Premium synthetic motor oil" },
+        { id: 98, name: "Brake Pad Set", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1632277646967-9a65e96d7e12?w=300&h=300&fit=crop", description: "High-performance brake pads", badge: "Popular" },
+        { id: 99, name: "Car Battery 12V", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1569687499547-bd2bc23d66bb?w=300&h=300&fit=crop", description: "Long-lasting car battery" },
+        { id: 100, name: "LED Headlight Kit", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1571019613540-996a0dba5ba6?w=300&h=300&fit=crop", description: "Bright LED headlight conversion" }
+    ],
+    'trucks-trailers': [
+        { id: 101, name: "Pickup Truck Ford F-150", price: 45999.99, originalPrice: 49999.99, image: "https://images.unsplash.com/photo-1563720223185-11003d516935?w=300&h=300&fit=crop", description: "Heavy-duty pickup truck" },
+        { id: 102, name: "Cargo Trailer 16ft", price: 8999.99, originalPrice: 9999.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Heavy-duty cargo trailer", badge: "Commercial" },
+        { id: 103, name: "Semi Truck Volvo", price: 89999.99, originalPrice: 99999.99, image: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=300&h=300&fit=crop", description: "Professional semi truck" },
+        { id: 104, name: "Utility Trailer", price: 5999.99, originalPrice: 6999.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Multi-purpose utility trailer" }
+    ],
+    'buses': [
+        { id: 105, name: "School Bus 72 Passenger", price: 75999.99, originalPrice: 85999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "Safe school transportation" },
+        { id: 106, name: "City Transit Bus", price: 149999.99, originalPrice: 169999.99, image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=300&h=300&fit=crop", description: "Public transportation bus", badge: "Commercial" },
+        { id: 107, name: "Minibus 15 Seater", price: 35999.99, originalPrice: 39999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "Passenger transport minibus" },
+        { id: 108, name: "Luxury Coach Bus", price: 199999.99, originalPrice: 229999.99, image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=300&h=300&fit=crop", description: "Premium passenger coach" }
+    ],
+    'construction-machinery': [
+        { id: 109, name: "Excavator CAT 320", price: 159999.99, originalPrice: 179999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Heavy-duty excavator", badge: "Professional" },
+        { id: 110, name: "Bulldozer D6", price: 299999.99, originalPrice: 329999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Powerful bulldozer for earthmoving" },
+        { id: 111, name: "Concrete Mixer Truck", price: 89999.99, originalPrice: 99999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Ready-mix concrete delivery" },
+        { id: 112, name: "Crane Mobile 25T", price: 199999.99, originalPrice: 219999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Mobile construction crane" }
+    ]
+};
+
+function filterByCategory(category) {
+    currentCategory = category;
+    
+    // Update products display
+    displayProducts(category);
+    
+    // Show/hide category cards based on selection
+    const categoryCards = document.querySelectorAll('.category-card');
+    categoryCards.forEach(card => {
+        const cardCategory = card.dataset.category;
+        if (category === 'all') {
+            card.style.display = 'block';
+        } else if (cardCategory === category || 
+            (category === 'health-beauty' && ['vitamins', 'fragrances', 'face-care', 'hair-beauty', 'body-care', 'sexual-wellness', 'oral-care', 'makeup'].includes(cardCategory)) ||
+            (category === 'electronics' && ['tv-dvd', 'audio-music', 'laptops-computers', 'electronics-accessories', 'computer-accessories', 'networking', 'printers-scanners', 'security-surveillance', 'computer-hardware'].includes(cardCategory)) ||
+            (category === 'vehicles' && ['vehicle-parts', 'cars', 'motorcycles', 'trucks-trailers', 'buses', 'construction-machinery', 'watercraft'].includes(cardCategory)) ||
+            (category === 'agriculture' && ['food-beverages', 'farm-machinery', 'feeds-supplements', 'farm-animals'].includes(cardCategory))) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    updateActiveCategory(category);
+    
+    // Update featured products section title
+    const featuredTitle = document.querySelector('.featured-products h2');
+    if (featuredTitle) {
+        if (category === 'all') {
+            featuredTitle.textContent = 'Featured Products';
+        } else {
+            const categoryName = getCategoryDisplayName(category);
+            featuredTitle.textContent = `${categoryName} Products`;
+        }
+    }
+}
+
+function getCategoryDisplayName(category) {
+    const categoryNames = {
+        'vitamins': 'Vitamins & Supplements',
+        'fragrances': 'Fragrances',
+        'face-care': 'Face Care',
+        'hair-beauty': 'Hair Beauty',
+        'body-care': 'Body Care',
+        'sexual-wellness': 'Sexual Wellness',
+        'oral-care': 'Oral Care',
+        'makeup': 'Make-Up',
+        'tools-accessories': 'Tools & Accessories',
+        'tv-dvd': 'TV & DVD Equipment',
+        'audio-music': 'Audio & Music Equipment',
+        'laptops-computers': 'Laptops & Computers',
+        'electronics-accessories': 'Electronics Accessories',
+        'computer-accessories': 'Computer Accessories',
+        'networking': 'Networking Products',
+        'printers-scanners': 'Printers & Scanners',
+        'security-surveillance': 'Security & Surveillance',
+        'computer-hardware': 'Computer Hardware',
+        'cars': 'Cars',
+        'motorcycles': 'Motorcycles & Scooters',
+        'vehicle-parts': 'Vehicle Parts & Accessories',
+        'trucks-trailers': 'Trucks & Trailers',
+        'buses': 'Buses & Microbuses',
+        'construction-machinery': 'Construction & Heavy Machinery',
+        'watercraft': 'Watercraft & Boats',
+        'food-beverages': 'Food & Beverages',
+        'farm-machinery': 'Farm Machinery & Equipment',
+        'feeds-supplements': 'Feeds, Supplements & Seeds',
+        'farm-animals': 'Farm Animals',
+        'health-beauty': 'Health & Beauty',
+        'electronics': 'Electronics',
+        'vehicles': 'Vehicles',
+        'agriculture': 'Food & Agriculture'
+    };
+    return categoryNames[category] || category;
+}
+
+function updateActiveCategory(category) {
+    // Update category buttons
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeBtn = document.querySelector(`[data-category="${category}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+}
+
+// Add click events to category navigation
+document.querySelectorAll('.category-btn, .dropdown-content a, .mobile-category-section a, .sidebar-featured-item, .sidebar-category-header, .sidebar-subcategories a, .featured-btn').forEach(element => {
+    element.addEventListener('click', function(e) {
+        e.preventDefault();
+        const category = this.dataset.category || this.getAttribute('data-category');
+        if (category) {
+            filterByCategory(category);
+            
+            // Close mobile menu if open
+            document.getElementById('mobileMenuOverlay').classList.remove('open');
+            document.body.style.overflow = 'auto';
+            
+            // Update products title
+            const productTitle = document.getElementById('products-title');
+            if (productTitle) {
+                const categoryName = getCategoryDisplayName(category);
+                productTitle.textContent = category === 'all' ? 'Featured Products' : `${categoryName} Products`;
+            }
+            
+            // Highlight active sidebar item
+            document.querySelectorAll('.sidebar-featured-item, .sidebar-category-header, .sidebar-subcategories a, .featured-btn').forEach(item => {
+                item.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Scroll to products section if clicked from main navigation
+            if (this.classList.contains('category-btn') && !this.closest('.sidebar-categories')) {
+                const targetSection = document.querySelector('.main-content') || document.querySelector('.featured-products');
+                if (targetSection) {
+                    targetSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        }
+    });
+});
+
+// Add click events to category cards
+document.querySelectorAll('.category-card, .featured-category-card').forEach(card => {
+    card.addEventListener('click', function() {
+        const category = this.dataset.category;
+        if (category) {
+            filterByCategory(category);
+        }
+    });
+});
+
+// Enhanced search functionality
+document.querySelector('.nav-search input').addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase();
+    const products = document.querySelectorAll('.product-card');
+    const categories = document.querySelectorAll('.category-card');
+    
+    if (query.length === 0) {
+        filterByCategory(currentCategory);
+        return;
+    }
+    
+    // Search products
+    products.forEach(product => {
+        const name = product.querySelector('h3').textContent.toLowerCase();
+        const category = product.querySelector('.product-category').textContent.toLowerCase();
+        
+        if (name.includes(query) || category.includes(query)) {
+            product.style.display = 'block';
+            product.classList.add('animate-in');
+        } else {
+            product.style.display = 'none';
+        }
+    });
+    
+    // Search categories
+    categories.forEach(category => {
+        const name = category.querySelector('h3').textContent.toLowerCase();
+        const description = category.querySelector('p').textContent.toLowerCase();
+        
+        if (name.includes(query) || description.includes(query)) {
+            category.style.display = 'block';
+        } else {
+            category.style.display = 'none';
+        }
+    });
+});
+
+// Mobile search functionality
+document.querySelector('.mobile-search input').addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase();
+    const categoryLinks = document.querySelectorAll('.mobile-category-section a');
+    
+    categoryLinks.forEach(link => {
+        const text = link.textContent.toLowerCase();
+        if (text.includes(query) || query.length === 0) {
+            link.style.display = 'block';
+        } else {
+            link.style.display = 'none';
+        }
+    });
+});
+
+// Show all categories function
+function showAllCategories() {
+    filterByCategory('all');
+    
+    // Scroll to categories
+    document.querySelector('.categories').scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+}
+
+// Category dropdown functionality for desktop
+document.querySelectorAll('.dropdown').forEach(dropdown => {
+    let timeout;
+    const button = dropdown.querySelector('.category-btn');
+    const dropdownContent = dropdown.querySelector('.dropdown-content');
+    const chevron = dropdown.querySelector('.fa-chevron-down');
+    
+    // Hover functionality for desktop
+    dropdown.addEventListener('mouseenter', function() {
+        clearTimeout(timeout);
+        this.classList.add('active');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    });
+    
+    dropdown.addEventListener('mouseleave', function() {
+        timeout = setTimeout(() => {
+            this.classList.remove('active');
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        }, 300);
+    });
+    
+    // Click functionality for main category buttons
+    if (button && button.dataset.category) {
+        button.addEventListener('click', function(e) {
+            // Don't trigger if clicking on dropdown content
+            if (!e.target.closest('.dropdown-content')) {
+                e.preventDefault();
+                const category = this.dataset.category;
+                filterByCategory(category);
+                
+                // Close mobile menu if open
+                document.getElementById('mobileMenuOverlay').classList.remove('open');
+                document.body.style.overflow = 'auto';
+                
+                // Visual feedback
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+                
+                // Update active navigation button
+                document.querySelectorAll('.category-btn').forEach(btn => {
+                    btn.classList.remove('nav-active');
+                });
+                this.classList.add('nav-active');
+                
+                // Scroll to products section
+                const targetSection = document.querySelector('.main-content') || document.querySelector('.featured-products');
+                if (targetSection) {
+                    targetSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        });
+    }
+    
+    // Toggle dropdown on click for mobile
+    if (button) {
+        button.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Close other dropdowns
+                document.querySelectorAll('.dropdown.active').forEach(otherDropdown => {
+                    if (otherDropdown !== dropdown) {
+                        otherDropdown.classList.remove('active');
+                        const otherChevron = otherDropdown.querySelector('.fa-chevron-down');
+                        if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+                    }
+                });
+                
+                // Toggle current dropdown
+                dropdown.classList.toggle('active');
+                if (chevron) {
+                    chevron.style.transform = dropdown.classList.contains('active') ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            }
+        });
+    }
+});
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.dropdown')) {
+        document.querySelectorAll('.dropdown.active').forEach(dropdown => {
+            dropdown.classList.remove('active');
+            const chevron = dropdown.querySelector('.fa-chevron-down');
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+        });
+    }
+});
+
+// Add category statistics update
+function updateCategoryStats() {
+    const categoryCards = document.querySelectorAll('.category-card');
+    categoryCards.forEach(card => {
+        const adsCount = card.querySelector('p').textContent;
+        if (adsCount.includes('ads')) {
+            const count = parseInt(adsCount.replace(/[^\d]/g, ''));
+            if (count > 10000) {
+                card.querySelector('p').style.color = '#10b981';
+                card.querySelector('p').style.fontWeight = '600';
+            } else if (count > 5000) {
+                card.querySelector('p').style.color = '#6366f1';
+                card.querySelector('p').style.fontWeight = '600';
+            }
+        }
+    });
+}
+
+// Initialize category stats
+updateCategoryStats();
+
+// Product generation and display functions
+function generateProductHTML(product, category) {
+    const badgeHTML = product.badge ? `<span class="product-badge">${product.badge}</span>` : '';
+    
+    return `
+        <div class="product-card" data-category="${category}">
+            ${badgeHTML}
+            <div class="product-image">
+                <img src="${product.image}" alt="${product.name}" loading="lazy">
+                <div class="product-overlay">
+                    <button class="quick-view" onclick="showProductDetails(${product.id})">Quick View</button>
+                </div>
+            </div>
+            <div class="product-info">
+                <h3>${product.name}</h3>
+                <p class="product-category">${product.categoryName || category}</p>
+                <div class="product-price">
+                    <span class="current-price">₵${product.price.toFixed(2)}</span>
+                    ${product.originalPrice ? `<span class="original-price">₵${product.originalPrice.toFixed(2)}</span>` : ''}
+                </div>
+                <button class="add-to-cart" onclick="addProductToCart(${product.id}, '${category}')">Add to Cart</button>
+            </div>
+        </div>
+    `;
+}
+
+function loadProductsForCategory(category, limit = 8) {
+    const products = productDatabase[category] || [];
+    return products.slice(0, limit);
+}
+
+function displayProducts(category = 'all', container = '.product-grid') {
+    const productContainer = document.querySelector(container);
+    if (!productContainer) {
+        console.log('Product container not found:', container);
+        return;
+    }
+    
+    let productsHTML = '';
+    
+    if (category === 'all' || category === 'featured') {
+        // Show products from all categories (mixed)
+        let allProducts = [];
+        Object.keys(productDatabase).forEach(cat => {
+            const categoryProducts = productDatabase[cat].slice(0, 2); // 2 products per category
+            categoryProducts.forEach(product => {
+                product.categoryKey = cat;
+                allProducts.push(product);
+            });
+        });
+        
+        // Shuffle and limit to 12 products for featured section
+        allProducts = allProducts.sort(() => Math.random() - 0.5).slice(0, 12);
+        
+        allProducts.forEach(product => {
+            productsHTML += generateProductHTML(product, product.categoryKey);
+        });
+    } else {
+        // Handle grouped categories
+        let categoriesToShow = [];
+        
+        if (category === 'health-beauty') {
+            categoriesToShow = ['vitamins', 'fragrances', 'face-care', 'hair-beauty', 'body-care', 'sexual-wellness', 'oral-care', 'makeup'];
+        } else if (category === 'electronics') {
+            categoriesToShow = ['tv-dvd', 'audio-music', 'laptops-computers', 'electronics-accessories', 'computer-accessories', 'networking', 'printers-scanners', 'security-surveillance', 'computer-hardware'];
+        } else if (category === 'vehicles') {
+            categoriesToShow = ['vehicle-parts', 'cars', 'motorcycles', 'trucks-trailers', 'buses', 'construction-machinery', 'watercraft'];
+        } else if (category === 'agriculture') {
+            categoriesToShow = ['food-beverages', 'farm-machinery', 'feeds-supplements', 'farm-animals'];
+        } else {
+            // Single category
+            categoriesToShow = [category];
+        }
+        
+        // Load products from the specified categories
+        categoriesToShow.forEach(cat => {
+            const products = loadProductsForCategory(cat, 4); // 4 products per subcategory
+            products.forEach(product => {
+                productsHTML += generateProductHTML(product, cat);
+            });
+        });
+    }
+    
+    if (productsHTML === '') {
+        productsHTML = '<div class="no-products"><p>No products found in this category. Please try another category.</p></div>';
+    }
+    
+    productContainer.innerHTML = productsHTML;
+    console.log(`Displayed ${category} category with ${productContainer.children.length} products`);
+}
+
+function addProductToCart(productId, category) {
+    const product = productDatabase[category]?.find(p => p.id === productId);
+    if (product) {
+        const cartProduct = {
+            id: productId,
+            name: product.name,
+            category: product.categoryName || category,
+            price: product.price,
+            image: product.image,
+            quantity: 1
+        };
+        cart.addItem(cartProduct);
+    }
+}
+
+function showProductDetails(productId) {
+    // Find product in database
+    let foundProduct = null;
+    let foundCategory = null;
+    
+    Object.keys(productDatabase).forEach(category => {
+        const product = productDatabase[category].find(p => p.id === productId);
+        if (product) {
+            foundProduct = product;
+            foundCategory = category;
+        }
+    });
+    
+    if (foundProduct) {
+        // Create and show product details modal
+        const modal = document.createElement('div');
+        modal.className = 'product-modal';
+        modal.innerHTML = `
+            <div class="product-modal-content">
+                <div class="product-modal-header">
+                    <h3>${foundProduct.name}</h3>
+                    <button class="close-modal" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</button>
+                </div>
+                <div class="product-modal-body">
+                    <div class="product-modal-image">
+                        <img src="${foundProduct.image}" alt="${foundProduct.name}">
+                    </div>
+                    <div class="product-modal-details">
+                        <p class="product-category">${foundProduct.categoryName || foundCategory}</p>
+                        <p class="product-description">${foundProduct.description}</p>
+                        <div class="product-price">
+                            <span class="current-price">₵${foundProduct.price.toFixed(2)}</span>
+                            ${foundProduct.originalPrice ? `<span class="original-price">₵${foundProduct.originalPrice.toFixed(2)}</span>` : ''}
+                        </div>
+                        ${foundProduct.badge ? `<span class="product-badge">${foundProduct.badge}</span>` : ''}
+                        <button class="btn-primary add-to-cart" onclick="addProductToCart(${foundProduct.id}, '${foundCategory}'); this.parentElement.parentElement.parentElement.parentElement.remove();">
+                            Add to Cart - ₵${foundProduct.price.toFixed(2)}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+}
+
+
 
 // Admin portal function
 function openAdminPortal() {
     window.open('admin.html', '_blank');
 }
 
-// Add CSS for additional components
-const additionalStyles = `
-    .cart-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem 0;
-        border-bottom: 1px solid #e2e8f0;
-    }
 
-    .cart-item-image img {
-        width: 60px;
-        height: 60px;
-        object-fit: cover;
-        border-radius: 10px;
-    }
-
-    .cart-item-details h4 {
-        margin: 0 0 0.25rem 0;
-        font-size: 1rem;
-    }
-
-    .cart-item-category {
-        color: #64748b;
-        font-size: 0.9rem;
-        margin: 0;
-    }
-
-    .cart-item-price {
-        font-weight: 600;
-        color: #6366f1;
-    }
-
-    .cart-item-controls {
-        margin-left: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .quantity-controls {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .qty-btn {
-        background: #f1f5f9;
-        border: none;
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-weight: 600;
-        color: #64748b;
-    }
-
-    .qty-btn:hover {
-        background: #e2e8f0;
-    }
-
-    .quantity {
-        font-weight: 600;
-        min-width: 20px;
-        text-align: center;
-    }
-
-    .remove-item {
-        background: #fee2e2;
-        border: none;
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-        cursor: pointer;
-        color: #ef4444;
-    }
-
-    .remove-item:hover {
-        background: #fecaca;
-    }
-
-    .empty-cart {
-        text-align: center;
-        color: #64748b;
-        font-style: italic;
-        padding: 2rem;
-    }
-
-    .checkout-modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1002;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
-
-    .checkout-modal-content {
-        background: white;
-        border-radius: 20px;
-        max-width: 500px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-
-    .checkout-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
-    }
-
-    .checkout-header h3 {
-        margin: 0;
-        color: #1e293b;
-    }
-
-    .close-modal {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        color: #64748b;
-        cursor: pointer;
-        padding: 0.5rem;
-        border-radius: 50%;
-    }
-
-    .checkout-form {
-        padding: 1.5rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-        color: #1e293b;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 0.75rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 1rem;
-        transition: border-color 0.3s ease;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-        outline: none;
-        border-color: #6366f1;
-    }
-
-    .order-summary {
-        background: #f8fafc;
-        padding: 1rem;
-        border-radius: 10px;
-        margin-bottom: 1.5rem;
-    }
-
-    .order-summary h4 {
-        margin: 0 0 1rem 0;
-        color: #1e293b;
-    }
-
-    .summary-items {
-        margin-bottom: 1rem;
-    }
-
-    .summary-item {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-        color: #64748b;
-    }
-
-    .summary-total {
-        border-top: 1px solid #e2e8f0;
-        padding-top: 1rem;
-        text-align: right;
-        color: #1e293b;
-    }
-
-    .order-confirmation {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1003;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-    }
-
-    .confirmation-content {
-        background: white;
-        border-radius: 20px;
-        padding: 2rem;
-        text-align: center;
-        max-width: 400px;
-        width: 100%;
-    }
-
-    .confirmation-icon {
-        font-size: 4rem;
-        color: #10b981;
-        margin-bottom: 1rem;
-    }
-
-    .confirmation-content h3 {
-        color: #1e293b;
-        margin-bottom: 1rem;
-    }
-
-    .order-details {
-        background: #f8fafc;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 1rem 0;
-        text-align: left;
-    }
-
-    .order-details p {
-        margin: 0.5rem 0;
-        color: #64748b;
-    }
-
-    .delivery-info {
-        color: #64748b;
-        font-size: 0.9rem;
-        margin: 1rem 0;
-    }
-
-    .notification {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: white;
-        border-radius: 10px;
-        padding: 1rem 1.5rem;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        z-index: 1004;
-        transform: translateX(400px);
-        transition: transform 0.3s ease;
-    }
-
-    .notification.show {
-        transform: translateX(0);
-    }
-
-    .notification.success {
-        border-left: 4px solid #10b981;
-    }
-
-    .notification.error {
-        border-left: 4px solid #ef4444;
-    }
-
-    .notification.info {
-        border-left: 4px solid #3b82f6;
-    }
-
-    .notification i {
-        font-size: 1.2rem;
-    }
-
-    .notification.success i {
-        color: #10b981;
-    }
-
-    .notification.error i {
-        color: #ef4444;
-    }
-
-    .notification.info i {
-        color: #3b82f6;
-    }
-
-    .animate-in {
-        animation: slideInUp 0.6s ease forwards;
-    }
-
-    @keyframes slideInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .admin-login-btn {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-        font-size: 0.875rem;
-    }
-
-    .admin-login-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
-    }
-`;
-
-// Inject additional styles
-const styleSheet = document.createElement('style');
-styleSheet.textContent = additionalStyles;
-document.head.appendChild(styleSheet);
