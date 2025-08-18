@@ -1,741 +1,1181 @@
 // Admin Portal JavaScript
-
-// Check if user is already logged in
-function checkAuthStatus() {
-    const isLoggedIn = localStorage.getItem('adminLoggedIn');
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    if (isLoggedIn === 'true' && currentPage === 'admin.html') {
-        // Redirect to dashboard if already logged in
-        window.location.href = 'admin-dashboard.html';
-    } else if (isLoggedIn !== 'true' && currentPage === 'admin-dashboard.html') {
-        // Redirect to login if not authenticated
-        window.location.href = 'admin.html';
+class AdminPortal {
+    constructor() {
+        this.isLoggedIn = false;
+        this.products = [];
+        this.categories = [];
+        this.orders = [];
+        this.currentSection = 'dashboard';
+        this.init();
     }
-}
 
-// Admin Login Functionality
-function handleAdminLogin(event) {
-    event.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-    
-    // Simple authentication (in production, this would be server-side)
-    if (username === 'admin' && password === 'donkomi2024') {
-        // Set authentication status
-        localStorage.setItem('adminLoggedIn', 'true');
-        localStorage.setItem('adminUsername', username);
-        
-        if (rememberMe) {
-            localStorage.setItem('adminRememberMe', 'true');
+    init() {
+        this.loadData();
+        this.bindEvents();
+        this.checkAuth();
+    }
+
+    bindEvents() {
+        // Login form
+        const loginForm = document.getElementById('adminLoginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
         }
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = item.dataset.section;
+                this.showSection(section);
+            });
+        });
+
+        // Product form
+        const addProductForm = document.getElementById('addProductForm');
+        if (addProductForm) {
+            addProductForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.addProduct();
+            });
+        }
+
+        // Category form
+        const addCategoryForm = document.getElementById('addCategoryForm');
+        if (addCategoryForm) {
+            addCategoryForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.addCategory();
+            });
+        }
+
+        // Edit product form
+        const editProductForm = document.getElementById('editProductForm');
+        if (editProductForm) {
+            editProductForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.updateProduct();
+            });
+        }
+
+        // Search and filters
+        this.bindSearchFilters();
         
-        // Show success message
-        showNotification('Login successful! Redirecting...', 'success');
+        // Image upload previews
+        this.bindImageUploads();
         
-        // Redirect to dashboard
-        setTimeout(() => {
-            window.location.href = 'admin-dashboard.html';
-        }, 1000);
-    } else {
-        showNotification('Invalid credentials. Please try again.', 'error');
-    }
-}
-
-// Logout Functionality
-function logout() {
-    localStorage.removeItem('adminLoggedIn');
-    localStorage.removeItem('adminUsername');
-    localStorage.removeItem('adminRememberMe');
-    
-    showNotification('Logged out successfully!', 'success');
-    
-    setTimeout(() => {
-        window.location.href = 'admin.html';
-    }, 1000);
-}
-
-// Show Notification
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <span>${message}</span>
-    `;
-
-    // Add notification styles if not already present
-    if (!document.querySelector('#notification-styles')) {
-        const styles = document.createElement('style');
-        styles.id = 'notification-styles';
-        styles.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: white;
-                border-radius: 10px;
-                padding: 1rem 1.5rem;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                z-index: 1004;
-                transform: translateX(400px);
-                transition: transform 0.3s ease;
-            }
-
-            .notification.show {
-                transform: translateX(0);
-            }
-
-            .notification.success {
-                border-left: 4px solid #10b981;
-            }
-
-            .notification.error {
-                border-left: 4px solid #ef4444;
-            }
-
-            .notification.info {
-                border-left: 4px solid #3b82f6;
-            }
-
-            .notification i {
-                font-size: 1.2rem;
-            }
-
-            .notification.success i {
-                color: #10b981;
-            }
-
-            .notification.error i {
-                color: #ef4444;
-            }
-
-            .notification.info i {
-                color: #3b82f6;
-            }
-        `;
-        document.head.appendChild(styles);
+        // Chat functionality
+        this.initAdminChat();
     }
 
-    document.body.appendChild(notification);
+    checkAuth() {
+        const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+        if (isLoggedIn) {
+            this.login();
+        }
+    }
 
-    setTimeout(() => notification.classList.add('show'), 100);
+    handleLogin() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
 
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => document.body.removeChild(notification), 300);
-    }, 3000);
-}
+        // Simple authentication (in real app, this would be server-side)
+        if (username === 'admin' && password === 'donkomi2024') {
+            localStorage.setItem('adminLoggedIn', 'true');
+            this.login();
+        } else {
+            this.showNotification('Invalid credentials', 'error');
+        }
+    }
 
-// Tab Management
-function switchTab(tabName) {
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    
-    // Remove active class from all menu items
-    document.querySelectorAll('.menu-item').forEach(item => {
+    login() {
+        this.isLoggedIn = true;
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminDashboard').style.display = 'block';
+        this.loadDashboard();
+    }
+
+    logout() {
+        this.isLoggedIn = false;
+        localStorage.removeItem('adminLoggedIn');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('adminDashboard').style.display = 'none';
+        document.getElementById('adminLoginForm').reset();
+    }
+
+    loadData() {
+        // Load products from sync system or localStorage
+        if (window.productSync) {
+            this.products = window.productSync.getAllProducts();
+        } else {
+            const savedProducts = localStorage.getItem('donkomi-products');
+            this.products = savedProducts ? JSON.parse(savedProducts) : [];
+        }
+
+        // Load categories from localStorage
+        const savedCategories = localStorage.getItem('donkomi-categories');
+        this.categories = savedCategories ? JSON.parse(savedCategories) : [];
+
+        // Load orders from localStorage
+        const savedOrders = localStorage.getItem('donkomi-orders');
+        this.orders = savedOrders ? JSON.parse(savedOrders) : [];
+    }
+
+    saveData() {
+        localStorage.setItem('donkomi-products', JSON.stringify(this.products));
+        localStorage.setItem('donkomi-categories', JSON.stringify(this.categories));
+        localStorage.setItem('donkomi-orders', JSON.stringify(this.orders));
+    }
+
+    showSection(sectionName) {
+        // Hide all sections
+        document.querySelectorAll('.admin-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Remove active class from nav items
+        document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
     
-    // Show selected tab
-    document.getElementById(`${tabName}-tab`).classList.add('active');
-    
-    // Add active class to selected menu item
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    
-    // Update header content
-    updateHeaderContent(tabName);
-    
-    // Load tab-specific data
-    loadTabData(tabName);
-}
-
-// Update Header Content
-function updateHeaderContent(tabName) {
-    const titleElement = document.getElementById('currentTabTitle');
-    const subtitleElement = document.getElementById('currentTabSubtitle');
-    
-    const tabInfo = {
-        dashboard: {
-            title: 'Dashboard',
-            subtitle: 'Real-time overview of Kumasi operations'
-        },
-        orders: {
-            title: 'Order Management',
-            subtitle: 'Manage and track all customer orders'
-        },
-        products: {
-            title: 'Products',
-            subtitle: 'Manage product catalog and inventory'
-        },
-        customers: {
-            title: 'Customers',
-            subtitle: 'View and manage customer information'
-        },
-        reports: {
-            title: 'Reports & Analytics',
-            subtitle: 'Generate insights and business reports'
-        },
-        settings: {
-            title: 'Admin Settings',
-            subtitle: 'Configure system settings and preferences'
+        // Show selected section
+        const targetSection = document.getElementById(sectionName);
+        if (targetSection) {
+            targetSection.classList.add('active');
         }
-    };
-    
-    if (tabInfo[tabName]) {
-        titleElement.textContent = tabInfo[tabName].title;
-        subtitleElement.textContent = tabInfo[tabName].subtitle;
-    }
-}
 
-// Load Tab Data
-function loadTabData(tabName) {
-    switch(tabName) {
+        // Add active class to nav item
+        const navItem = document.querySelector(`[data-section="${sectionName}"]`);
+        if (navItem) {
+            navItem.classList.add('active');
+        }
+
+        this.currentSection = sectionName;
+
+        // Load section-specific content
+        switch(sectionName) {
         case 'dashboard':
-            loadDashboardData();
-            break;
-        case 'orders':
-            loadOrdersData();
+                this.loadDashboard();
             break;
         case 'products':
-            // Load products data when implemented
+                this.loadProducts();
             break;
-        case 'customers':
-            // Load customers data when implemented
+            case 'categories':
+                this.loadCategories();
             break;
-        case 'reports':
-            // Load reports data when implemented
+            case 'orders':
+                this.loadOrders();
             break;
-        case 'settings':
-            // Load settings data when implemented
+            case 'messages':
+                this.loadMessages();
             break;
     }
 }
 
-// Dashboard Data Loading
-function loadDashboardData() {
-    updateStats();
-    loadRecentOrders();
-    updateRevenueData();
-}
+    loadDashboard() {
+        // Update stats
+        let totalProducts = 0;
+        let totalCategories = 0;
+        
+        if (window.productSync) {
+            totalProducts = window.productSync.getAllProducts().length;
+            totalCategories = window.productSync.getCategories().length;
+        } else {
+            totalProducts = this.products.length;
+            totalCategories = this.categories.length;
+        }
+        
+        document.getElementById('totalProducts').textContent = totalProducts;
+        document.getElementById('totalOrders').textContent = this.orders.length;
+        document.getElementById('totalCategories').textContent = totalCategories;
+        
+        const totalRevenue = this.orders.reduce((sum, order) => sum + order.total, 0);
+        document.getElementById('totalRevenue').textContent = `₵${totalRevenue.toFixed(2)}`;
 
-// Update Statistics
-function updateStats() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    
-    const total = orders.length;
-    const pending = orders.filter(o => o.status === 'pending').length;
-    const shipped = orders.filter(o => o.status === 'shipped').length;
-    const delivered = orders.filter(o => o.status === 'delivered').length;
-    
-    document.getElementById('totalOrders').textContent = total;
-    document.getElementById('pendingOrders').textContent = pending;
-    document.getElementById('shippedOrders').textContent = shipped;
-    document.getElementById('deliveredOrders').textContent = delivered;
-}
+        // Load recent orders
+        this.loadRecentOrders();
+        
+        // Initialize category selects
+        this.updateCategorySelects();
+        this.updateCategoryFilter();
+    }
 
-// Load Recent Orders
-function loadRecentOrders() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    const recentOrders = orders.slice(0, 5); // Show last 5 orders
-    
-    const table = document.getElementById('recentOrdersTable');
+    loadRecentOrders() {
+        const recentOrdersContainer = document.getElementById('recentOrders');
+        const recentOrders = this.orders.slice(0, 5);
     
     if (recentOrders.length === 0) {
-        table.innerHTML = '<p style="text-align: center; padding: 2rem; opacity: 0.7;">No orders yet</p>';
+            recentOrdersContainer.innerHTML = '<p>No recent orders</p>';
         return;
     }
     
-    const header = `
-        <div class="orders-table-header">
-            <div>Order ID</div>
-            <div>Customer</div>
-            <div>Items</div>
-            <div>Total</div>
-            <div>Status</div>
-        </div>
-    `;
-    
-    const rows = recentOrders.map(order => `
-        <div class="order-row">
-            <div>${order.orderId}</div>
-            <div>
-                <strong>${order.customer.name}</strong><br>
-                <small>${order.customer.phone}</small>
-            </div>
-            <div>${order.items.length} items</div>
-            <div>₵${order.total.toFixed(2)}</div>
-            <div>
+        const ordersHTML = recentOrders.map(order => `
+            <div class="recent-order-item">
+                <div class="order-info">
+                    <strong>${order.orderId}</strong>
                 <span class="order-status ${order.status}">${order.status}</span>
+            </div>
+                <div class="order-details">
+                    <span>${order.customer.name}</span>
+                    <span>₵${order.total.toFixed(2)}</span>
             </div>
         </div>
     `).join('');
     
-    table.innerHTML = header + rows;
-}
-
-// Update Revenue Data
-function updateRevenueData() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    
-    const totalRevenue = orders.reduce((sum, o) => sum + o.total, 0);
-    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
-    const completedOrders = orders.filter(o => o.status === 'delivered').length;
-    
-    document.getElementById('totalRevenue').textContent = `₵${totalRevenue.toFixed(2)}`;
-    document.getElementById('avgOrderValue').textContent = `₵${avgOrderValue.toFixed(2)}`;
-    document.getElementById('ordersCompleted').textContent = completedOrders;
-}
-
-// Orders Data Loading
-function loadOrdersData() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    renderOrdersTable(orders);
-}
-
-// Render Orders Table
-function renderOrdersTable(orders) {
-    const table = document.getElementById('ordersTable');
-    
-    if (orders.length === 0) {
-        table.innerHTML = '<p style="text-align: center; padding: 2rem; opacity: 0.7;">No orders found</p>';
-        return;
+        recentOrdersContainer.innerHTML = ordersHTML;
     }
-    
-    const header = `
-        <div class="orders-table-header">
-            <div>Order ID</div>
-            <div>Customer</div>
-            <div>Items</div>
-            <div>Total</div>
-            <div>Status</div>
-            <div>Actions</div>
-        </div>
-    `;
-    
-    const rows = orders.map(order => `
-        <div class="order-row">
-            <div>${order.orderId}</div>
-            <div>
-                <strong>${order.customer.name}</strong><br>
-                <small>${order.customer.phone}</small>
-            </div>
-            <div>${order.items.length} items</div>
-            <div>₵${order.total.toFixed(2)}</div>
-            <div>
-                <span class="order-status ${order.status}">${order.status}</span>
-            </div>
-            <div>
-                <button class="btn-secondary" onclick="updateOrderStatus('${order.orderId}', 'confirmed')" 
-                        ${order.status !== 'pending' ? 'disabled' : ''}>
-                    Confirm
-                </button>
-                <button class="btn-secondary" onclick="updateOrderStatus('${order.orderId}', 'shipped')"
-                        ${order.status !== 'confirmed' ? 'disabled' : ''}>
-                    Ship
-                </button>
-                <button class="btn-secondary" onclick="updateOrderStatus('${order.orderId}', 'delivered')"
-                        ${order.status !== 'shipped' ? 'disabled' : ''}>
-                    Deliver
-                </button>
-            </div>
-        </div>
-    `).join('');
-    
-    table.innerHTML = header + rows;
-}
 
-// Update Order Status
-function updateOrderStatus(orderId, newStatus) {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    const order = orders.find(o => o.orderId === orderId);
-    
-    if (order) {
-        order.status = newStatus;
-        order.updatedAt = new Date().toISOString();
+    loadProducts() {
+        const productsGrid = document.getElementById('productsGrid');
         
-        // Update local storage
-        localStorage.setItem('donkomi-orders', JSON.stringify(orders));
-        
-        showNotification(`Order ${orderId} status updated to ${newStatus}`, 'success');
-        
-        // Refresh data
-        if (document.getElementById('dashboard-tab').classList.contains('active')) {
-            loadDashboardData();
+        // Get products from sync system
+        let products = [];
+        if (window.productSync) {
+            products = window.productSync.getAllProducts();
         } else {
-            loadOrdersData();
-        }
-    }
-}
-
-// Filter Orders
-function filterOrders() {
-    const statusFilter = document.getElementById('orderStatusFilter').value;
-    const dateFilter = document.getElementById('dateRangeFilter').value;
-    
-    let orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    
-    // Filter by status
-    if (statusFilter !== 'all') {
-        orders = orders.filter(o => o.status === statusFilter);
-    }
-    
-    // Filter by date
-    if (dateFilter !== 'all') {
-        const now = new Date();
-        let filterDate;
-        
-        switch(dateFilter) {
-            case 'today':
-                filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                break;
-            case 'week':
-                filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                break;
-            case 'month':
-                filterDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                break;
+            products = this.products;
         }
         
-        if (filterDate) {
-            orders = orders.filter(o => new Date(o.date) >= filterDate);
-        }
-    }
-    
-    renderOrdersTable(orders);
-}
-
-// Refresh Orders
-function refreshOrders() {
-    showNotification('Orders refreshed successfully!', 'success');
-    loadOrdersData();
-}
-
-// Export Orders
-function exportOrders() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    
-    if (orders.length === 0) {
-        showNotification('No orders to export', 'info');
-        return;
-    }
-    
-    const csvContent = generateCSV(orders);
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `donkomi-orders-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    showNotification('Orders exported successfully!', 'success');
-}
-
-// Generate CSV
-function generateCSV(orders) {
-    const headers = ['Order ID', 'Customer Name', 'Phone', 'Address', 'Items', 'Total', 'Status', 'Date', 'Location'];
-    const rows = orders.map(order => [
-        order.orderId,
-        order.customer.name,
-        order.customer.phone,
-        order.customer.address,
-        order.items.map(item => `${item.name} x${item.quantity}`).join('; '),
-        `₵${order.total.toFixed(2)}`,
-        order.status,
-        new Date(order.date).toLocaleDateString(),
-        order.location
-    ]);
-    
-    return [headers, ...rows].map(row => row.join(',')).join('\n');
-}
-
-// Generate Report
-function generateReport() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    
-    if (orders.length === 0) {
-        showNotification('No orders to generate report for', 'info');
-        return;
-    }
-    
-    const report = {
-        totalOrders: orders.length,
-        totalRevenue: orders.reduce((sum, o) => sum + o.total, 0),
-        statusBreakdown: {
-            pending: orders.filter(o => o.status === 'pending').length,
-            confirmed: orders.filter(o => o.status === 'confirmed').length,
-            shipped: orders.filter(o => o.status === 'shipped').length,
-            delivered: orders.filter(o => o.status === 'delivered').length
-        },
-        averageOrderValue: orders.length > 0 ? orders.reduce((sum, o) => sum + o.total, 0) / orders.length : 0
-    };
-    
-    showReportModal(report);
-}
-
-// Show Report Modal
-function showReportModal(report) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Sales Report</h3>
-                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="report-item">
-                    <h4>Total Orders: ${report.totalOrders}</h4>
-                </div>
-                <div class="report-item">
-                    <h4>Total Revenue: ₵${report.totalRevenue.toFixed(2)}</h4>
-                </div>
-                <div class="report-item">
-                    <h4>Average Order Value: ₵${report.averageOrderValue.toFixed(2)}</h4>
-                </div>
-                <div class="report-item">
-                    <h4>Status Breakdown:</h4>
-                    <ul>
-                        <li>Pending: ${report.statusBreakdown.pending}</li>
-                        <li>Confirmed: ${report.statusBreakdown.confirmed}</li>
-                        <li>Shipped: ${report.statusBreakdown.shipped}</li>
-                        <li>Delivered: ${report.statusBreakdown.delivered}</li>
-                    </ul>
-                </div>
-            </div>
+        // Update category filter dropdown
+        this.updateCategoryFilter();
+        
+        if (products.length === 0) {
+            productsGrid.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-box"></i>
+                    <h3>No Products Yet</h3>
+                    <p>Start by adding your first product</p>
+                    <button class="btn-primary" onclick="showAddProductModal()">
+                        <i class="fas fa-plus"></i>
+                        Add Product
+                    </button>
         </div>
     `;
+            return;
+        }
+
+        const productsHTML = products.map(product => `
+            <div class="product-card" data-id="${product.id}">
+                <div class="product-image">
+                    <img src="${product.image}" alt="${product.name}">
+                    ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ''}
+                </div>
+                <div class="product-info">
+                    <h4>${product.name}</h4>
+                    <p class="product-category">${product.category}</p>
+                    <div class="product-price">
+                        <span class="current-price">₵${product.price}</span>
+                        ${product.originalPrice ? `<span class="original-price">₵${product.originalPrice}</span>` : ''}
+                    </div>
+            </div>
+                <div class="product-actions">
+                    <button class="btn-secondary" onclick="adminPortal.editProduct('${product.id}')">
+                        <i class="fas fa-edit"></i>
+                        Edit
+                    </button>
+                    <button class="btn-danger" onclick="adminPortal.deleteProduct('${product.id}')">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                    </button>
+            </div>
+        </div>
+    `).join('');
     
-    // Add modal styles if not already present
-    if (!document.querySelector('#modal-styles')) {
-        const styles = document.createElement('style');
-        styles.id = 'modal-styles';
-        styles.textContent = `
-            .modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 1002;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 20px;
-            }
+        productsGrid.innerHTML = productsHTML;
+    }
 
-            .modal-content {
-                background: white;
-                border-radius: 20px;
-                max-width: 500px;
-                width: 100%;
-                max-height: 90vh;
-                overflow-y: auto;
-            }
+        loadCategories() {
+        const categoriesGrid = document.getElementById('categoriesGrid');
+        
+        // Get categories from sync system
+        let categories = [];
+        if (window.productSync) {
+            const categoryNames = window.productSync.getCategories();
+            categories = categoryNames.map(name => ({
+                id: name,
+                name: name,
+                description: `Products in ${name} category`,
+                color: 'health',
+                icon: 'fas fa-tag'
+            }));
+        } else {
+            categories = this.categories;
+        }
+        
+        if (categories.length === 0) {
+            categoriesGrid.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-tags"></i>
+                    <h3>No Categories Yet</h3>
+                    <p>Start by adding your first category</p>
+                    <button class="btn-primary" onclick="showAddCategoryModal()">
+                        <i class="fas fa-plus"></i>
+                        Add Category
+                    </button>
+        </div>
+    `;
+        return;
+    }
+    
+        const categoriesHTML = categories.map(category => `
+            <div class="category-card" data-id="${category.id}">
+                <div class="category-icon ${category.color}">
+                    <i class="${category.icon}"></i>
+            </div>
+                <div class="category-info">
+                    <h4>${category.name}</h4>
+                    <p>${category.description || 'No description'}</p>
+                    <span class="product-count">${this.getProductCountByCategory(category.name)} products</span>
+            </div>
+                <div class="category-actions">
+                    <button class="btn-secondary" onclick="adminPortal.editCategory('${category.id}')">
+                        <i class="fas fa-edit"></i>
+                        Edit
+                </button>
+                    <button class="btn-danger" onclick="adminPortal.deleteCategory('${category.id}')">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+        categoriesGrid.innerHTML = categoriesHTML;
+    }
 
-            .modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1.5rem;
-                border-bottom: 1px solid #e2e8f0;
-            }
+    loadOrders() {
+        const ordersTable = document.getElementById('ordersTable');
+        
+        if (this.orders.length === 0) {
+            ordersTable.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h3>No Orders Yet</h3>
+                    <p>Orders will appear here when customers place them</p>
+                </div>
+            `;
+            return;
+        }
 
-            .modal-header h3 {
-                margin: 0;
-                color: #1e293b;
-            }
-
-            .close-modal {
-                background: none;
-                border: none;
-                font-size: 1.5rem;
-                color: #64748b;
-                cursor: pointer;
-                padding: 0.5rem;
-                border-radius: 50%;
-            }
-
-            .modal-body {
-                padding: 1.5rem;
-            }
-
-            .report-item {
-                margin-bottom: 1.5rem;
-                padding: 1rem;
-                background: #f8fafc;
-                border-radius: 10px;
-            }
-
-            .report-item h4 {
-                margin: 0 0 0.5rem 0;
-                color: #6366f1;
-            }
-
-            .report-item ul {
-                margin: 0.5rem 0 0 0;
-                padding-left: 1.5rem;
-            }
-
-            .report-item li {
-                margin-bottom: 0.25rem;
-                color: #64748b;
-            }
+        const ordersHTML = `
+            <table class="orders-table-content">
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${this.orders.map(order => `
+                        <tr>
+                            <td>${order.orderId}</td>
+                            <td>
+                                <div class="customer-info">
+                                    <strong>${order.customer.name}</strong>
+                                    <span>${order.customer.phone}</span>
+                                </div>
+                            </td>
+                            <td>${order.items.length} items</td>
+                            <td>₵${order.total.toFixed(2)}</td>
+                            <td>
+                                <span class="status-badge ${order.status}">${order.status}</span>
+                            </td>
+                            <td>${new Date(order.date).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn-secondary" onclick="adminPortal.viewOrder('${order.orderId}')">
+                                    <i class="fas fa-eye"></i>
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
         `;
-        document.head.appendChild(styles);
-    }
-    
-    document.body.appendChild(modal);
-}
 
-// Show Add Tracking Modal
-function showAddTrackingModal() {
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    const confirmedOrders = orders.filter(o => o.status === 'confirmed');
-    
-    if (confirmedOrders.length === 0) {
-        showNotification('No confirmed orders to add tracking for', 'info');
+        ordersTable.innerHTML = ordersHTML;
+    }
+
+    addProduct() {
+        const form = document.getElementById('addProductForm');
+        const formData = new FormData(form);
+        
+        const product = {
+            id: Date.now().toString(),
+            name: formData.get('name'),
+            category: formData.get('category'),
+            price: parseFloat(formData.get('price')),
+            originalPrice: formData.get('originalPrice') ? parseFloat(formData.get('originalPrice')) : null,
+            description: formData.get('description'),
+            image: this.getImagePreview(formData.get('image')),
+            badge: formData.get('badge') || null,
+            dateAdded: new Date().toISOString()
+        };
+
+        // Use the sync system to add product
+        if (window.productSync) {
+            window.productSync.addProduct(product);
+        } else {
+            // Fallback to local storage
+            this.products.push(product);
+            this.saveData();
+        }
+        
+        this.showNotification('Product added successfully!', 'success');
+        this.closeModal('addProductModal');
+        form.reset();
+        this.loadProducts();
+    }
+
+    addCategory() {
+        const form = document.getElementById('addCategoryForm');
+        const formData = new FormData(form);
+        
+        const category = {
+            id: Date.now().toString(),
+            name: formData.get('name'),
+            parentCategory: formData.get('parentCategory') || null,
+            icon: formData.get('icon'),
+            color: formData.get('color'),
+            description: formData.get('description'),
+            dateAdded: new Date().toISOString()
+        };
+
+        // Use the sync system to add category
+        if (window.productSync) {
+            const success = window.productSync.addCategory(category);
+            if (success) {
+                this.showNotification('Category added successfully!', 'success');
+            } else {
+                this.showNotification('Category already exists!', 'error');
+            }
+        } else {
+            // Fallback to local storage
+            this.categories.push(category);
+            this.saveData();
+            this.showNotification('Category added successfully!', 'success');
+        }
+        
+        this.closeModal('addCategoryModal');
+        form.reset();
+        this.loadCategories();
+        this.updateCategorySelects();
+    }
+
+    editProduct(productId) {
+        const product = this.products.find(p => p.id === productId);
+        if (!product) return;
+
+        const form = document.getElementById('editProductForm');
+        form.querySelector('[name="productId"]').value = product.id;
+        form.querySelector('[name="name"]').value = product.name;
+        form.querySelector('[name="category"]').value = product.category;
+        form.querySelector('[name="price"]').value = product.price;
+        form.querySelector('[name="originalPrice"]').value = product.originalPrice || '';
+        form.querySelector('[name="description"]').value = product.description || '';
+        form.querySelector('[name="badge"]').value = product.badge || '';
+
+        const imagePreview = document.getElementById('currentProductImage');
+        if (imagePreview) {
+            imagePreview.src = product.image;
+            imagePreview.style.display = 'block';
+        }
+
+        this.showModal('editProductModal');
+    }
+
+    updateProduct() {
+        const form = document.getElementById('editProductForm');
+        const formData = new FormData(form);
+        const productId = formData.get('productId');
+
+        const updatedProduct = {
+            id: productId,
+            name: formData.get('name'),
+            category: formData.get('category'),
+            price: parseFloat(formData.get('price')),
+            originalPrice: formData.get('originalPrice') ? parseFloat(formData.get('originalPrice')) : null,
+            description: formData.get('description'),
+            badge: formData.get('badge') || null
+        };
+
+        // Handle image update
+        const imageFile = formData.get('image');
+        if (imageFile && imageFile.size > 0) {
+            updatedProduct.image = this.getImagePreview(imageFile);
+        }
+
+        // Use the sync system to update product
+        if (window.productSync) {
+            const success = window.productSync.updateProduct(productId, updatedProduct);
+            if (success) {
+                this.showNotification('Product updated successfully!', 'success');
+            } else {
+                this.showNotification('Product not found!', 'error');
+            }
+        } else {
+            // Fallback to local storage
+            const productIndex = this.products.findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                this.products[productIndex] = updatedProduct;
+                this.saveData();
+                this.showNotification('Product updated successfully!', 'success');
+            } else {
+                this.showNotification('Product not found!', 'error');
+            }
+        }
+        
+        this.closeModal('editProductModal');
+        this.loadProducts();
+    }
+
+    deleteProduct(productId) {
+        if (confirm('Are you sure you want to delete this product?')) {
+            // Use the sync system to delete product
+            if (window.productSync) {
+                const success = window.productSync.deleteProduct(productId);
+                if (success) {
+                    this.showNotification('Product deleted successfully!', 'success');
+                } else {
+                    this.showNotification('Product not found!', 'error');
+                }
+            } else {
+                // Fallback to local storage
+                this.products = this.products.filter(p => p.id !== productId);
+                this.saveData();
+                this.showNotification('Product deleted successfully!', 'success');
+            }
+            this.loadProducts();
+        }
+    }
+
+    deleteCategory(categoryId) {
+        if (confirm('Are you sure you want to delete this category? Products in this category will be affected.')) {
+            // Use the sync system to delete category
+            if (window.productSync) {
+                const success = window.productSync.deleteCategory(categoryId);
+                if (success) {
+                    this.showNotification('Category deleted successfully!', 'success');
+                } else {
+                    this.showNotification('Category not found!', 'error');
+                }
+            } else {
+                // Fallback to local storage
+                this.categories = this.categories.filter(c => c.id !== categoryId);
+                this.saveData();
+                this.showNotification('Category deleted successfully!', 'success');
+            }
+            this.loadCategories();
+            this.updateCategorySelects();
+        }
+    }
+
+    getProductCountByCategory(categoryName) {
+        if (window.productSync) {
+            return window.productSync.getProductsByCategory(categoryName).length;
+        } else {
+            return this.products.filter(p => p.category === categoryName).length;
+        }
+    }
+
+    getImagePreview(file) {
+        // For demo purposes, we'll use a placeholder
+        // In a real app, you'd upload to a server and get a URL
+        return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop';
+    }
+
+    bindSearchFilters() {
+        // Product search
+        const productSearch = document.getElementById('productSearch');
+        if (productSearch) {
+            productSearch.addEventListener('input', (e) => {
+                this.filterProducts(e.target.value);
+            });
+        }
+
+        // Category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', (e) => {
+                this.filterProductsByCategory(e.target.value);
+            });
+        }
+
+        // Order search
+        const orderSearch = document.getElementById('orderSearch');
+        if (orderSearch) {
+            orderSearch.addEventListener('input', (e) => {
+                this.filterOrders(e.target.value);
+            });
+        }
+    }
+
+    bindImageUploads() {
+        // Add product image upload
+        const addProductImage = document.querySelector('#addProductModal input[type="file"]');
+        if (addProductImage) {
+            addProductImage.addEventListener('change', (e) => {
+                this.handleImagePreview(e.target, '#addProductModal .upload-preview');
+            });
+        }
+
+        // Edit product image upload
+        const editProductImage = document.querySelector('#editProductModal input[type="file"]');
+        if (editProductImage) {
+            editProductImage.addEventListener('change', (e) => {
+                this.handleImagePreview(e.target, '#editProductModal .upload-preview');
+            });
+        }
+    }
+
+    handleImagePreview(input, previewSelector) {
+        const preview = document.querySelector(previewSelector);
+        const file = input.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 100%; height: auto;">`;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    filterProducts(searchTerm) {
+        const filteredProducts = this.products.filter(product => 
+            product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            product.category.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        this.renderFilteredProducts(filteredProducts);
+    }
+
+    filterProductsByCategory(category) {
+        if (!category) {
+            this.loadProducts();
+            return;
+        }
+        const filteredProducts = this.products.filter(product => product.category === category);
+        this.renderFilteredProducts(filteredProducts);
+    }
+
+    renderFilteredProducts(products) {
+        const productsGrid = document.getElementById('productsGrid');
+        
+        if (products.length === 0) {
+            productsGrid.innerHTML = '<div class="empty-state"><p>No products found</p></div>';
         return;
     }
     
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add Tracking Number</h3>
-                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+        const productsHTML = products.map(product => `
+            <div class="product-card" data-id="${product.id}">
+                <div class="product-image">
+                    <img src="${product.image}" alt="${product.name}">
+                    ${product.badge ? `<span class="product-badge">${product.badge}</span>` : ''}
             </div>
-            <div class="modal-body">
-                <form id="trackingForm">
-                    <div class="form-group">
-                        <label for="trackingOrderId">Order ID</label>
-                        <select id="trackingOrderId" required>
-                            <option value="">Select Order</option>
-                            ${confirmedOrders.map(o => 
-                                `<option value="${o.orderId}">${o.orderId} - ${o.customer.name}</option>`
-                            ).join('')}
-                        </select>
+                <div class="product-info">
+                    <h4>${product.name}</h4>
+                    <p class="product-category">${product.category}</p>
+                    <div class="product-price">
+                        <span class="current-price">₵${product.price}</span>
+                        ${product.originalPrice ? `<span class="original-price">₵${product.originalPrice}</span>` : ''}
+                </div>
+                </div>
+                <div class="product-actions">
+                    <button class="btn-secondary" onclick="adminPortal.editProduct('${product.id}')">
+                        <i class="fas fa-edit"></i>
+                        Edit
+                    </button>
+                    <button class="btn-danger" onclick="adminPortal.deleteProduct('${product.id}')">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                    </button>
+                </div>
+                </div>
+        `).join('');
+
+        productsGrid.innerHTML = productsHTML;
+    }
+
+    getAllCategories() {
+        // Define all available categories from the product database
+        const predefinedCategories = [
+            'vitamins',
+            'fragrances', 
+            'face-care',
+            'hair-beauty',
+            'body-care',
+            'sexual-wellness',
+            'oral-care',
+            'makeup',
+            'tools-accessories',
+            'tv-dvd',
+            'audio-music',
+            'laptops-computers',
+            'electronics-accessories',
+            'computer-accessories',
+            'networking',
+            'printers-scanners',
+            'security-surveillance',
+            'computer-hardware',
+            'vehicle-parts',
+            'cars',
+            'motorcycles',
+            'trucks-trailers',
+            'buses',
+            'construction-machinery',
+            'watercraft',
+            'food-beverages',
+            'farm-machinery',
+            'feeds-supplements',
+            'farm-animals'
+        ];
+        
+        let categories = [];
+        if (window.productSync) {
+            // Get existing categories from the sync system
+            const existingCategories = window.productSync.getCategories();
+            // Combine with predefined categories and remove duplicates
+            categories = [...new Set([...predefinedCategories, ...existingCategories])];
+        } else {
+            // Use predefined categories plus any custom ones
+            const customCategories = this.categories.map(c => c.name);
+            categories = [...new Set([...predefinedCategories, ...customCategories])];
+        }
+        
+        // Sort categories alphabetically for better UX
+        categories.sort();
+        
+        return categories;
+    }
+
+    updateCategorySelects() {
+        const categorySelects = document.querySelectorAll('select[name="category"]');
+        categorySelects.forEach(select => {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Select Category</option>';
+            
+            const categories = this.getAllCategories();
+            
+            categories.forEach(categoryName => {
+                const option = document.createElement('option');
+                option.value = categoryName;
+                // Format category name for display (replace hyphens with spaces and capitalize)
+                const displayName = categoryName.replace(/-/g, ' ')
+                    .replace(/\b\w/g, l => l.toUpperCase());
+                option.textContent = displayName;
+                select.appendChild(option);
+            });
+            select.value = currentValue;
+        });
+    }
+
+    updateCategoryFilter() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (!categoryFilter) return;
+        
+        const currentValue = categoryFilter.value;
+        categoryFilter.innerHTML = '<option value="">All Categories</option>';
+        
+        const categories = this.getAllCategories();
+        
+        categories.forEach(categoryName => {
+            const option = document.createElement('option');
+            option.value = categoryName;
+            // Format category name for display (replace hyphens with spaces and capitalize)
+            const displayName = categoryName.replace(/-/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+            option.textContent = displayName;
+            categoryFilter.appendChild(option);
+        });
+        categoryFilter.value = currentValue;
+    }
+
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+            this.updateCategorySelects();
+        }
+    }
+
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        `;
+
+        document.body.appendChild(notification);
+
+        // Animate in
+        setTimeout(() => notification.classList.add('show'), 100);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // Chat functionality
+    initAdminChat() {
+        this.activeConversation = null;
+        this.chatInterval = null;
+        this.bindChatEvents();
+        this.startChatPolling();
+    }
+
+    bindChatEvents() {
+        // Send message on button click
+        const sendBtn = document.getElementById('adminSendBtn');
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => {
+                this.sendAdminMessage();
+            });
+        }
+
+        // Send message on Enter key
+        const chatInput = document.getElementById('adminChatInput');
+        if (chatInput) {
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendAdminMessage();
+                }
+            });
+        }
+
+        // Listen for storage events (new messages from users)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'donkomi-chat') {
+                this.loadConversations();
+                if (this.activeConversation) {
+                    this.loadChatMessages(this.activeConversation);
+                }
+                this.updateMessageBadge();
+            }
+        });
+    }
+
+    loadMessages() {
+        this.loadConversations();
+        this.updateMessageBadge();
+    }
+
+    loadConversations() {
+        const container = document.getElementById('conversationsList');
+        const activeIndicator = document.getElementById('activeConversations');
+        
+        if (!container) return;
+
+        const chats = JSON.parse(localStorage.getItem('donkomi-chat') || '{}');
+        const conversationIds = Object.keys(chats);
+
+        if (conversationIds.length === 0) {
+            container.innerHTML = `
+                <div class="empty-conversations">
+                    <i class="fas fa-comments"></i>
+                    <p>No conversations yet</p>
+                    <span>Customer messages will appear here</span>
+                </div>
+            `;
+            activeIndicator.textContent = '0 active';
+        return;
+    }
+    
+        // Sort by most recent message
+        const sortedConversations = conversationIds
+            .map(id => ({ id, ...chats[id] }))
+            .sort((a, b) => {
+                const aTime = a.messages?.length ? a.messages[a.messages.length - 1].time : 0;
+                const bTime = b.messages?.length ? b.messages[b.messages.length - 1].time : 0;
+                return bTime - aTime;
+            });
+
+        const conversationsHTML = sortedConversations.map(conversation => {
+            const lastMessage = conversation.messages?.length ? 
+                conversation.messages[conversation.messages.length - 1] : null;
+            const hasUnread = conversation.messages?.some(msg => 
+                msg.from === 'user' && !msg.read
+            );
+
+            return `
+                <div class="conversation-item ${this.activeConversation === conversation.id ? 'active' : ''} ${hasUnread ? 'unread' : ''}" 
+                     data-conversation-id="${conversation.id}">
+                    <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face" 
+                         alt="User" class="conversation-avatar">
+                    <div class="conversation-info">
+                        <div class="conversation-name">${conversation.userName || 'User'}</div>
+                        <div class="conversation-preview">
+                            ${lastMessage ? this.escapeHtml(lastMessage.text) : 'No messages'}
+            </div>
                     </div>
-                    <div class="form-group">
-                        <label for="trackingNumber">Tracking Number</label>
-                        <input type="text" id="trackingNumber" placeholder="Enter tracking number" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="courier">Courier Service</label>
-                        <select id="courier" required>
-                            <option value="">Select courier</option>
-                            <option value="ghana-post">Ghana Post</option>
-                            <option value="dhl">DHL</option>
-                            <option value="fedex">FedEx</option>
-                            <option value="local-delivery">Local Delivery (Kumasi)</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn-primary">Add Tracking</button>
-                </form>
+                    <div class="conversation-time">
+                        ${lastMessage ? this.formatTime(lastMessage.time) : ''}
             </div>
         </div>
     `;
-    
-    document.body.appendChild(modal);
-    
-    // Handle form submission
-    document.getElementById('trackingForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        addTrackingToOrder();
-    });
-}
+        }).join('');
 
-// Add Tracking to Order
-function addTrackingToOrder() {
-    const orderId = document.getElementById('trackingOrderId').value;
-    const trackingNumber = document.getElementById('trackingNumber').value;
-    const courier = document.getElementById('courier').value;
-    
-    if (!orderId || !trackingNumber || !courier) {
-        showNotification('Please fill in all fields', 'error');
+        container.innerHTML = conversationsHTML;
+
+        // Add click events to conversation items
+        container.querySelectorAll('.conversation-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const conversationId = item.dataset.conversationId;
+                this.selectConversation(conversationId);
+            });
+        });
+
+        activeIndicator.textContent = `${conversationIds.length} active`;
+
+        // Auto-select first conversation if none selected
+        if (!this.activeConversation && sortedConversations.length > 0) {
+            this.selectConversation(sortedConversations[0].id);
+        }
+    }
+
+    selectConversation(conversationId) {
+        this.activeConversation = conversationId;
+        
+        // Update conversation list
+        document.querySelectorAll('.conversation-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        const selectedItem = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+            selectedItem.classList.remove('unread');
+        }
+
+        this.loadChatMessages(conversationId);
+        this.markMessagesAsRead(conversationId);
+        this.showChatInput();
+        this.updateMessageBadge();
+    }
+
+    loadChatMessages(conversationId) {
+        const messagesContainer = document.getElementById('adminChatMessages');
+        const chatUserName = document.getElementById('chatUserName');
+        const chatUserStatus = document.getElementById('chatUserStatus');
+        const chatUserAvatar = document.getElementById('chatUserAvatar');
+
+        if (!messagesContainer) return;
+
+        const chats = JSON.parse(localStorage.getItem('donkomi-chat') || '{}');
+        const conversation = chats[conversationId];
+
+        if (!conversation) return;
+
+        // Update header
+        if (chatUserName) {
+            chatUserName.textContent = conversation.userName || 'User';
+        }
+        if (chatUserStatus) {
+            chatUserStatus.textContent = conversation.userEmail || 'Customer';
+        }
+        if (chatUserAvatar) {
+            chatUserAvatar.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face';
+        }
+
+        // Load messages
+        if (!conversation.messages || conversation.messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div class="chat-welcome">
+                    <i class="fas fa-comments"></i>
+                    <h3>Start Conversation</h3>
+                    <p>Send a message to ${conversation.userName || 'this customer'} to start the conversation.</p>
+                </div>
+            `;
         return;
     }
     
-    const orders = JSON.parse(localStorage.getItem('donkomi-orders') || '[]');
-    const order = orders.find(o => o.orderId === orderId);
-    
-    if (order) {
-        order.tracking = {
-            number: trackingNumber,
-            courier: courier,
-            addedAt: new Date().toISOString()
+        const messagesHTML = conversation.messages.map(message => `
+            <div class="chat-message ${message.from}">
+                <div class="message-bubble">
+                    ${this.escapeHtml(message.text)}
+                </div>
+                <div class="message-time">
+                    ${this.formatTime(message.time)}
+                </div>
+            </div>
+        `).join('');
+
+        messagesContainer.innerHTML = messagesHTML;
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    sendAdminMessage() {
+        const input = document.getElementById('adminChatInput');
+        if (!input || !this.activeConversation) return;
+
+        const messageText = input.value.trim();
+        if (!messageText) return;
+
+        const chats = JSON.parse(localStorage.getItem('donkomi-chat') || '{}');
+        const conversation = chats[this.activeConversation];
+
+        if (!conversation) return;
+
+        const newMessage = {
+            id: Date.now().toString(),
+            from: 'admin',
+            text: messageText,
+            time: Date.now(),
+            read: false
         };
-        order.status = 'shipped';
-        
-        localStorage.setItem('donkomi-orders', JSON.stringify(orders));
-        
-        showNotification('Tracking number added successfully!', 'success');
-        
-        // Close modal
-        document.querySelector('.modal-overlay').remove();
-        
-        // Refresh data
-        if (document.getElementById('dashboard-tab').classList.contains('active')) {
-            loadDashboardData();
-        } else {
-            loadOrdersData();
+
+        conversation.messages.push(newMessage);
+        localStorage.setItem('donkomi-chat', JSON.stringify(chats));
+
+        input.value = '';
+        this.loadChatMessages(this.activeConversation);
+        this.loadConversations(); // Update conversation list
+
+        // Trigger storage event for user
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: 'donkomi-chat',
+            newValue: JSON.stringify(chats)
+        }));
+    }
+
+    markMessagesAsRead(conversationId) {
+        const chats = JSON.parse(localStorage.getItem('donkomi-chat') || '{}');
+        const conversation = chats[conversationId];
+
+        if (!conversation || !conversation.messages) return;
+
+        let hasUnread = false;
+        conversation.messages.forEach(message => {
+            if (message.from === 'user' && !message.read) {
+                message.read = true;
+                hasUnread = true;
+            }
+        });
+
+        if (hasUnread) {
+            localStorage.setItem('donkomi-chat', JSON.stringify(chats));
         }
     }
-}
 
-// Refresh Data
-function refreshData() {
-    showNotification('Data refreshed successfully!', 'success');
-    loadDashboardData();
-}
-
-// Event Listeners
-document.addEventListener('DOMContentLoaded', function() {
-    // Check authentication status
-    checkAuthStatus();
-    
-    // Set up event listeners based on current page
-    const currentPage = window.location.pathname.split('/').pop();
-    
-    if (currentPage === 'admin.html') {
-        // Login page
-        document.getElementById('adminLoginForm').addEventListener('submit', handleAdminLogin);
-    } else if (currentPage === 'admin-dashboard.html') {
-        // Dashboard page
-        setupDashboardEventListeners();
-        loadDashboardData();
+    showChatInput() {
+        const chatInputArea = document.getElementById('chatInputArea');
+        if (chatInputArea) {
+            chatInputArea.style.display = 'block';
+        }
     }
-});
 
-// Setup Dashboard Event Listeners
-function setupDashboardEventListeners() {
-    // Menu item clicks
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.addEventListener('click', function() {
-            const tabName = this.getAttribute('data-tab');
-            switchTab(tabName);
+    startChatPolling() {
+        this.clearChatInterval();
+        this.chatInterval = setInterval(() => {
+            this.updateMessageBadge();
+            if (this.currentSection === 'messages') {
+                this.loadConversations();
+            }
+        }, 5000); // Check every 5 seconds
+    }
+
+    clearChatInterval() {
+        if (this.chatInterval) {
+            clearInterval(this.chatInterval);
+            this.chatInterval = null;
+        }
+    }
+
+    updateMessageBadge() {
+        const messageBadge = document.getElementById('messageBadge');
+        if (!messageBadge) return;
+
+        const chats = JSON.parse(localStorage.getItem('donkomi-chat') || '{}');
+        let hasUnread = false;
+
+        Object.values(chats).forEach(conversation => {
+            if (conversation.messages?.some(msg => msg.from === 'user' && !msg.read)) {
+                hasUnread = true;
+            }
         });
-    });
-    
-    // Filter changes
-    document.getElementById('orderStatusFilter').addEventListener('change', filterOrders);
-    document.getElementById('dateRangeFilter').addEventListener('change', filterOrders);
-    
-    // Revenue period change
-    document.getElementById('revenuePeriod').addEventListener('change', updateRevenueData);
+
+        messageBadge.style.display = hasUnread ? 'flex' : 'none';
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        
+        return date.toLocaleDateString();
+    }
 }
 
-// Open Admin Portal from main page
-function openAdminPortal() {
-    window.open('admin.html', '_blank');
+// Global functions for HTML onclick handlers
+function showSection(sectionName) {
+    adminPortal.showSection(sectionName);
 }
+
+function showAddProductModal() {
+    adminPortal.showModal('addProductModal');
+}
+
+function showAddCategoryModal() {
+    adminPortal.showModal('addCategoryModal');
+}
+
+function closeModal(modalId) {
+    adminPortal.closeModal(modalId);
+}
+
+function logout() {
+    adminPortal.logout();
+}
+
+function sendAdminMessage() {
+    adminPortal.sendAdminMessage();
+}
+
+function goToWebsite() {
+    // Store a flag to indicate admin is visiting the website
+    sessionStorage.setItem('adminVisitingWebsite', 'true');
+    
+    // Open main website in a new tab to preserve admin session
+    window.open('index.html', '_blank');
+}
+
+// Initialize admin portal
+let adminPortal;
+document.addEventListener('DOMContentLoaded', function() {
+    adminPortal = new AdminPortal();
+});

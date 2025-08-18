@@ -29,7 +29,7 @@
                     <i class="fas fa-shopping-cart"></i>
                     <span class="cart-count">0</span>
                 </button>
-                <button class="user-btn" title="User Account" aria-label="User account menu">
+                <button class="user-btn" title="User Account" aria-label="User account menu" onclick="window.location.href='user.html'">
                     <i class="fas fa-user"></i>
                 </button>
                 <button class="mobile-menu-btn" title="Menu" aria-label="Open mobile menu">
@@ -205,25 +205,58 @@
         </div>
         
         <div class="hero-content">
-            <h1>Welcome to <span class="highlight">Donkomi</span></h1>
+            <div class="hero-text">
+                <h1>
+                    <span class="welcome">Welcome to</span>
+                    <span class="highlight">Donkomi</span>
+                </h1>
             <p>Kumasi's trusted marketplace for quality products and amazing deals</p>
             <div class="hero-buttons">
-                <button class="btn-primary">Shop Now</button>
-                <button class="btn-secondary">View Promotions</button>
+                    <a href="#featured-products" class="btn-primary">
+                        <i class="fas fa-shopping-cart"></i>
+                        Shop Now
+                    </a>
+                    <a href="#promotions" class="btn-secondary">
+                        <i class="fas fa-tags"></i>
+                        View Promotions
+                    </a>
+                </div>
+            </div>
+            
+            <div class="hero-visual">
+                <div class="hero-stats">
+                    <div class="stat-card">
+                        <span class="stat-number">10K+</span>
+                        <span class="stat-label">Happy Customers</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number">500+</span>
+                        <span class="stat-label">Products</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number">24/7</span>
+                        <span class="stat-label">Support</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Secure</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="hero-visual">
-            <div class="floating-card card-1">
-                <i class="fas fa-tshirt"></i>
-                <span>Fashion</span>
+        
+        <div class="floating-elements">
+            <div class="floating-card">
+                <i class="fas fa-shipping-fast"></i>
+                <span>Fast Delivery</span>
             </div>
-            <div class="floating-card card-2">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
+            <div class="floating-card">
+                <i class="fas fa-shield-alt"></i>
+                <span>Secure Payment</span>
             </div>
-            <div class="floating-card card-3">
-                <i class="fas fa-shoe-prints"></i>
-                <span>Shoes</span>
+            <div class="floating-card">
+                <i class="fas fa-headset"></i>
+                <span>24/7 Support</span>
             </div>
         </div>
     </section>
@@ -490,32 +523,92 @@
     </section>
 
     <!-- Promotions -->
-    <section class="promotions">
+    <section class="promotions" id="promotions">
         <div class="container">
+            <div class="section-header">
             <h2>Special Offers</h2>
+                <p>Discover amazing deals and exclusive promotions</p>
+            </div>
             <div class="promo-grid">
                 <div class="promo-card promo-large">
+                    <div class="promo-badge">
+                        <span>HOT DEAL</span>
+                    </div>
                     <div class="promo-content">
+                        <div class="promo-icon">
+                            <i class="fas fa-fire"></i>
+                        </div>
                         <h3>Clearance Sale</h3>
                         <p>Up to 70% off on selected items</p>
-                        <button class="btn-primary">Shop Now</button>
+                        <div class="promo-features">
+                            <span><i class="fas fa-check"></i> Limited Time</span>
+                            <span><i class="fas fa-check"></i> Free Shipping</span>
+                        </div>
+                        <button class="btn-primary" onclick="handlePromoClick('clearance')">
+                            <i class="fas fa-shopping-cart"></i>
+                            Shop Now
+                        </button>
                     </div>
                     <div class="promo-visual">
-                        <i class="fas fa-tags"></i>
+                        <div class="floating-elements">
+                            <div class="floating-tag">-70%</div>
+                            <div class="floating-tag">-50%</div>
+                            <div class="floating-tag">-30%</div>
+                        </div>
                     </div>
                 </div>
-                <div class="promo-card">
+                
+                <div class="promo-card promo-new">
+                    <div class="promo-badge">
+                        <span>NEW</span>
+                    </div>
                     <div class="promo-content">
+                        <div class="promo-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
                         <h3>New Arrivals</h3>
                         <p>Fresh styles every week</p>
-                        <button class="btn-secondary">Explore</button>
+                        <div class="promo-features">
+                            <span><i class="fas fa-check"></i> Latest Trends</span>
+                            <span><i class="fas fa-check"></i> Premium Quality</span>
+                        </div>
+                        <button class="btn-secondary" onclick="handlePromoClick('new-arrivals')">
+                            <i class="fas fa-eye"></i>
+                            Explore
+                        </button>
+                    </div>
+                    <div class="promo-visual">
+                        <div class="product-preview">
+                            <div class="preview-item"></div>
+                            <div class="preview-item"></div>
+                            <div class="preview-item"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="promo-card">
+                
+                <div class="promo-card promo-delivery">
+                    <div class="promo-badge">
+                        <span>FREE</span>
+                    </div>
                     <div class="promo-content">
+                        <div class="promo-icon">
+                            <i class="fas fa-shipping-fast"></i>
+                        </div>
                         <h3>Free Delivery</h3>
                         <p>On orders over ₵50 in Kumasi</p>
-                        <button class="btn-secondary">Learn More</button>
+                        <div class="promo-features">
+                            <span><i class="fas fa-check"></i> Same Day</span>
+                            <span><i class="fas fa-check"></i> Tracked</span>
+                        </div>
+                        <button class="btn-secondary" onclick="handlePromoClick('delivery')">
+                            <i class="fas fa-info-circle"></i>
+                            Learn More
+                        </button>
+                    </div>
+                    <div class="promo-visual">
+                        <div class="delivery-truck">
+                            <i class="fas fa-truck"></i>
+                        </div>
                     </div>
                 </div>
             </div>

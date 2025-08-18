@@ -35,8 +35,8 @@ class Cart {
                 const button = e.target.closest('.add-to-cart');
                 const productCard = button.closest('.product-card');
                 if (productCard) {
-                    const product = this.getProductFromCard(productCard);
-                    this.addItem(product);
+                const product = this.getProductFromCard(productCard);
+                this.addItem(product);
                 }
             }
         });
@@ -438,8 +438,19 @@ document.querySelectorAll('.category-card, .product-card, .promo-card').forEach(
 
 // Initialize cart and load products on page load
 document.addEventListener('DOMContentLoaded', function() {
-    const cart = new Cart();
+const cart = new Cart();
     window.cart = cart;
+    
+    // Ensure product database is loaded from localStorage
+    if (window.productSync) {
+        window.productSync.loadFromStorage();
+    }
+    
+    // Check if user is logged in and update UI
+    checkUserLoginStatus();
+    
+    // Check if admin is visiting the website
+    checkAdminVisit();
     
     // Load initial products (featured)
     displayProducts('all');
@@ -453,8 +464,52 @@ document.addEventListener('DOMContentLoaded', function() {
         featuredBtn.classList.add('active');
     }
     
+    // Add event listeners for promotional buttons
+    addPromoButtonListeners();
+    
     console.log('Page loaded, displaying featured products');
+    console.log('🔄 Product sync system active:', !!window.productSync);
 });
+
+// Add event listeners for promotional buttons
+function addPromoButtonListeners() {
+    // Clearance sale button
+    const clearanceBtn = document.querySelector('.promo-card.promo-large .btn-primary');
+    if (clearanceBtn) {
+        clearanceBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Clearance button clicked via event listener');
+            handlePromoClick('clearance');
+        });
+    }
+    
+    // New arrivals button
+    const newArrivalsBtn = document.querySelector('.promo-card.promo-new .btn-secondary');
+    if (newArrivalsBtn) {
+        newArrivalsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('New arrivals button clicked via event listener');
+            handlePromoClick('new-arrivals');
+        });
+    }
+    
+    // Delivery info button
+    const deliveryBtn = document.querySelector('.promo-card.promo-delivery .btn-secondary');
+    if (deliveryBtn) {
+        deliveryBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Delivery button clicked via event listener');
+            handlePromoClick('delivery');
+        });
+    }
+    
+    console.log('Promo button listeners added');
+    
+    // Test if buttons exist
+    console.log('Clearance button found:', !!clearanceBtn);
+    console.log('New arrivals button found:', !!newArrivalsBtn);
+    console.log('Delivery button found:', !!deliveryBtn);
+}
 
 // Mobile menu functionality
 document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
@@ -478,8 +533,8 @@ document.getElementById('mobileMenuOverlay').addEventListener('click', function(
 let currentCategory = 'all';
 let allProducts = [];
 
-// Comprehensive product database
-const productDatabase = {
+// Comprehensive product database with localStorage sync
+let productDatabase = {
     'vitamins': [
         { id: 1, name: "Vitamin C 1000mg Tablets", price: 45.99, originalPrice: 65.99, image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop", description: "High-potency Vitamin C for immune support", badge: "Popular" },
         { id: 2, name: "Omega-3 Fish Oil Capsules", price: 89.99, originalPrice: 120.99, image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop", description: "Premium fish oil for heart health" },
@@ -671,6 +726,355 @@ const productDatabase = {
         { id: 112, name: "Crane Mobile 25T", price: 199999.99, originalPrice: 219999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Mobile construction crane" }
     ]
 };
+
+// Product Database Sync System
+class ProductDatabaseSync {
+    constructor() {
+        this.storageKey = 'donkomi-product-database';
+        this.init();
+    }
+
+    init() {
+        this.loadFromStorage();
+        this.setupStorageListener();
+    }
+
+    loadFromStorage() {
+        const savedDatabase = localStorage.getItem(this.storageKey);
+        if (savedDatabase) {
+            try {
+                const parsedDatabase = JSON.parse(savedDatabase);
+                // Merge with existing database to preserve default products
+                productDatabase = { ...productDatabase, ...parsedDatabase };
+                console.log('📦 Product database loaded from localStorage:', Object.keys(productDatabase).length, 'categories');
+            } catch (error) {
+                console.error('❌ Error loading product database from localStorage:', error);
+            }
+        }
+    }
+
+    saveToStorage() {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(productDatabase));
+            console.log('💾 Product database saved to localStorage');
+        } catch (error) {
+            console.error('❌ Error saving product database to localStorage:', error);
+        }
+    }
+
+    addProduct(product) {
+        const category = product.category;
+        if (!productDatabase[category]) {
+            productDatabase[category] = [];
+        }
+        
+        // Generate unique ID if not provided
+        if (!product.id) {
+            product.id = 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        productDatabase[category].push(product);
+        this.saveToStorage();
+        console.log('✅ Product added:', product.name, 'to category:', category);
+        
+        // Trigger UI update if on main page
+        if (typeof displayProducts === 'function') {
+            displayProducts('all');
+        }
+    }
+
+    updateProduct(productId, updatedProduct) {
+        for (const category in productDatabase) {
+            const productIndex = productDatabase[category].findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                // Remove from old category if category changed
+                if (updatedProduct.category !== category) {
+                    productDatabase[category].splice(productIndex, 1);
+                    if (!productDatabase[updatedProduct.category]) {
+                        productDatabase[updatedProduct.category] = [];
+                    }
+                    productDatabase[updatedProduct.category].push(updatedProduct);
+                } else {
+                    productDatabase[category][productIndex] = updatedProduct;
+                }
+                this.saveToStorage();
+                console.log('✅ Product updated:', updatedProduct.name);
+                
+                // Trigger UI update if on main page
+                if (typeof displayProducts === 'function') {
+                    displayProducts('all');
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    deleteProduct(productId) {
+        for (const category in productDatabase) {
+            const productIndex = productDatabase[category].findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                const deletedProduct = productDatabase[category].splice(productIndex, 1)[0];
+                this.saveToStorage();
+                console.log('✅ Product deleted:', deletedProduct.name);
+                
+                // Trigger UI update if on main page
+                if (typeof displayProducts === 'function') {
+                    displayProducts('all');
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    addCategory(category) {
+        if (!productDatabase[category.name]) {
+            productDatabase[category.name] = [];
+            this.saveToStorage();
+            console.log('✅ Category added:', category.name);
+            
+            // Trigger UI update if on main page
+            if (typeof updateCategoryStats === 'function') {
+                updateCategoryStats();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    deleteCategory(categoryName) {
+        if (productDatabase[categoryName]) {
+            delete productDatabase[categoryName];
+            this.saveToStorage();
+            console.log('✅ Category deleted:', categoryName);
+            
+            // Trigger UI update if on main page
+            if (typeof updateCategoryStats === 'function') {
+                updateCategoryStats();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    getAllProducts() {
+        const allProducts = [];
+        for (const category in productDatabase) {
+            allProducts.push(...productDatabase[category].map(product => ({
+                ...product,
+                category: category
+            })));
+        }
+        return allProducts;
+    }
+
+    getProductsByCategory(category) {
+        return productDatabase[category] || [];
+    }
+
+    getCategories() {
+        return Object.keys(productDatabase);
+    }
+
+    setupStorageListener() {
+        // Listen for storage changes from admin portal
+        window.addEventListener('storage', (e) => {
+            if (e.key === this.storageKey && e.newValue) {
+                try {
+                    const newDatabase = JSON.parse(e.newValue);
+                    productDatabase = { ...productDatabase, ...newDatabase };
+                    console.log('🔄 Product database updated from storage event');
+                    
+                    // Trigger UI updates
+                    if (typeof displayProducts === 'function') {
+                        displayProducts('all');
+                    }
+                    if (typeof updateCategoryStats === 'function') {
+                        updateCategoryStats();
+                    }
+                } catch (error) {
+                    console.error('❌ Error parsing storage update:', error);
+                }
+            }
+        });
+    }
+}
+
+// Initialize product database sync
+const productSync = new ProductDatabaseSync();
+window.productSync = productSync; // Make it globally available
+
+// User login status management
+function checkUserLoginStatus() {
+    const userAuth = localStorage.getItem('userAuth');
+    const userBtn = document.querySelector('.user-btn');
+    
+    if (userAuth && userBtn) {
+        try {
+            const authData = JSON.parse(userAuth);
+            if (authData.isLoggedIn && authData.user) {
+                // User is logged in, update the button
+                updateUserButton(authData.user);
+                
+                // Check if user returned from dashboard
+                const returnedFromDashboard = sessionStorage.getItem('userReturnedFromDashboard');
+                if (returnedFromDashboard) {
+                    showWelcomeBackMessage(authData.user);
+                    sessionStorage.removeItem('userReturnedFromDashboard');
+                }
+            }
+        } catch (error) {
+            console.error('Error parsing user auth data:', error);
+        }
+    }
+}
+
+function updateUserButton(user) {
+    const userBtn = document.querySelector('.user-btn');
+    if (!userBtn) return;
+    
+    // Create a dropdown for logged-in user
+    const userMenu = document.createElement('div');
+    userMenu.className = 'user-menu-main';
+    userMenu.innerHTML = `
+        <button class="user-btn logged-in" title="User Account" aria-label="User account menu">
+            <img src="${user.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'}" 
+                 alt="User" class="user-avatar-small">
+            <span class="user-name-small">${user.firstName}</span>
+            <i class="fas fa-chevron-down"></i>
+        </button>
+        <div class="user-dropdown-main">
+            <div class="user-info">
+                <img src="${user.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face'}" 
+                     alt="User" class="user-avatar-dropdown">
+                <div>
+                    <div class="user-name-dropdown">${user.firstName} ${user.lastName}</div>
+                    <div class="user-email-dropdown">${user.email}</div>
+                </div>
+            </div>
+            <hr>
+            <a href="user.html" class="dropdown-item">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </a>
+            <a href="user.html#orders" class="dropdown-item">
+                <i class="fas fa-shopping-bag"></i>
+                My Orders
+            </a>
+            <a href="user.html#wishlist" class="dropdown-item">
+                <i class="fas fa-heart"></i>
+                Wishlist
+            </a>
+            <a href="user.html#profile" class="dropdown-item">
+                <i class="fas fa-user"></i>
+                Profile
+            </a>
+            <hr>
+            <a href="#" onclick="logoutUser()" class="dropdown-item logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    `;
+    
+    // Replace the existing user button
+    userBtn.parentNode.replaceChild(userMenu, userBtn);
+    
+    // Add dropdown functionality
+    const newUserBtn = userMenu.querySelector('.user-btn');
+    const dropdown = userMenu.querySelector('.user-dropdown-main');
+    
+    newUserBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('show');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', () => {
+        dropdown.classList.remove('show');
+    });
+}
+
+function showWelcomeBackMessage(user) {
+    const notification = document.createElement('div');
+    notification.className = 'notification success welcome-back';
+    notification.innerHTML = `
+        <i class="fas fa-user-check"></i>
+        <span>Welcome back, ${user.firstName}! Continue shopping where you left off.</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // Remove after 4 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
+function logoutUser() {
+    localStorage.removeItem('userAuth');
+    location.reload(); // Refresh to reset UI
+}
+
+function checkAdminVisit() {
+    const adminVisiting = sessionStorage.getItem('adminVisitingWebsite');
+    
+    if (adminVisiting) {
+        // Show special admin indicator
+        showAdminVisitNotification();
+        sessionStorage.removeItem('adminVisitingWebsite');
+        
+        // Add special admin view indicator to the page
+        addAdminViewIndicator();
+    }
+}
+
+function showAdminVisitNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'notification info admin-visit';
+    notification.innerHTML = `
+        <i class="fas fa-user-shield"></i>
+        <span>👨‍💼 Admin View: You're viewing the website as an administrator</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
+}
+
+function addAdminViewIndicator() {
+    // Add a subtle admin indicator to the navbar
+    const navbar = document.querySelector('.navbar');
+    if (navbar) {
+        const adminIndicator = document.createElement('div');
+        adminIndicator.className = 'admin-view-indicator';
+        adminIndicator.innerHTML = `
+            <i class="fas fa-user-shield"></i>
+            <span>Admin View</span>
+        `;
+        navbar.appendChild(adminIndicator);
+    }
+}
 
 function filterByCategory(category) {
     currentCategory = category;
@@ -1153,6 +1557,132 @@ function showProductDetails(productId) {
 // Admin portal function
 function openAdminPortal() {
     window.open('admin.html', '_blank');
+}
+
+// Handle promotional button clicks
+function handlePromoClick(type) {
+    console.log('Promo button clicked:', type); // Debug log
+    
+    // Add visual feedback
+    const button = event.target.closest('button');
+    if (button) {
+        button.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            button.style.transform = '';
+        }, 150);
+    }
+    
+    switch(type) {
+        case 'clearance':
+            console.log('Clearance sale clicked'); // Debug log
+            // Filter to show clearance/discounted products
+            if (typeof filterByCategory === 'function') {
+                filterByCategory('all');
+            }
+            if (typeof showNotification === 'function') {
+                showNotification('Showing clearance items!', 'success');
+            }
+            
+            // Scroll to products section
+            const productsSection = document.querySelector('.main-content');
+            if (productsSection) {
+                productsSection.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+            break;
+            
+        case 'new-arrivals':
+            console.log('New arrivals clicked'); // Debug log
+            // Show newest products
+            if (typeof filterByCategory === 'function') {
+                filterByCategory('all');
+            }
+            if (typeof showNotification === 'function') {
+                showNotification('Showing latest arrivals!', 'success');
+            }
+            
+            // Scroll to products section
+            const productsSection2 = document.querySelector('.main-content');
+            if (productsSection2) {
+                productsSection2.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+            break;
+            
+        case 'delivery':
+            console.log('Delivery info clicked'); // Debug log
+            // Show delivery information modal
+            showDeliveryInfo();
+            break;
+            
+        default:
+            console.log('Unknown promo type:', type);
+    }
+}
+
+// Make functions globally accessible
+window.handlePromoClick = handlePromoClick;
+window.showDeliveryInfo = showDeliveryInfo;
+
+// Show delivery information modal
+function showDeliveryInfo() {
+    // Remove existing modal if any
+    const existingModal = document.querySelector('.delivery-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create delivery info modal
+    const modal = document.createElement('div');
+    modal.className = 'delivery-modal';
+    modal.innerHTML = `
+        <div class="delivery-modal-content">
+            <div class="delivery-modal-header">
+                <h3><i class="fas fa-shipping-fast"></i> Free Delivery Information</h3>
+                <button class="close-modal" onclick="this.parentElement.parentElement.parentElement.remove()">&times;</button>
+            </div>
+            <div class="delivery-modal-body">
+                <div class="delivery-info-grid">
+                    <div class="delivery-info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h4>Delivery Areas</h4>
+                        <p>Free delivery available in Kumasi and surrounding areas</p>
+                    </div>
+                    <div class="delivery-info-item">
+                        <i class="fas fa-money-bill-wave"></i>
+                        <h4>Minimum Order</h4>
+                        <p>Free delivery on orders over ₵50</p>
+                    </div>
+                    <div class="delivery-info-item">
+                        <i class="fas fa-clock"></i>
+                        <h4>Delivery Time</h4>
+                        <p>Same day delivery for orders placed before 2 PM</p>
+                    </div>
+                    <div class="delivery-info-item">
+                        <i class="fas fa-truck"></i>
+                        <h4>Tracking</h4>
+                        <p>Real-time tracking available for all deliveries</p>
+                    </div>
+                </div>
+                <div class="delivery-notice">
+                    <p><strong>Note:</strong> Delivery times may vary during peak periods and holidays.</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add click outside to close
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 }
 
 
