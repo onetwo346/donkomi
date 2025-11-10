@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donkomi Admin Dashboard - Kumasi Operations</title>
+    <title>Donkomi Admin Dashboard - Ghana Operations</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="admin-styles.css">
@@ -17,7 +17,7 @@
                     <i class="fas fa-shopping-bag"></i>
                     <h2>Donkomi</h2>
                 </div>
-                <p class="location">Kumasi Operations</p>
+                <p class="location">Ghana Operations</p>
             </div>
 
             <ul class="sidebar-menu">
@@ -61,7 +61,7 @@
             <header class="admin-header">
                 <div class="header-left">
                     <h1 id="currentTabTitle">Dashboard</h1>
-                    <p id="currentTabSubtitle">Real-time overview of Kumasi operations</p>
+                    <p id="currentTabSubtitle">Real-time overview of Ghana operations</p>
                 </div>
                 <div class="header-right">
                     <div class="admin-info">
@@ -69,7 +69,7 @@
                         <span class="admin-role">Operations Manager</span>
                     </div>
                     <div class="header-actions">
-                        <button class="refresh-btn" onclick="refreshData()">
+                        <button class="refresh-btn" onclick="refreshData()" title="Refresh data">
                             <i class="fas fa-sync-alt"></i>
                         </button>
                         <button class="notifications-btn">
@@ -131,7 +131,7 @@
                     <div class="section-header">
                         <h3>Revenue Overview</h3>
                         <div class="period-selector">
-                            <select id="revenuePeriod">
+                            <select id="revenuePeriod" title="Select revenue period">
                                 <option value="today">Today</option>
                                 <option value="week">This Week</option>
                                 <option value="month" selected>This Month</option>

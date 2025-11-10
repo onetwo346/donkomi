@@ -174,7 +174,7 @@ body {
     align-items: center;
     gap: 0;
     overflow-x: auto;
-    scrollbar-width: none;
+    /* scrollbar-width: none; */ /* Firefox only - progressive enhancement */
     -ms-overflow-style: none;
 }
 
@@ -495,12 +495,12 @@ body {
 }
 
 .hero h1 .welcome {
-    display: block;
-    font-size: 1.2rem;
+    display: inline;
+    font-size: 2.5rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 3px;
-    margin-bottom: 0.5rem;
+    letter-spacing: 2px;
+    margin-right: 1rem;
     opacity: 0.9;
     animation: fadeInUp 1s ease-out 0.3s both;
 }
@@ -510,9 +510,9 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    display: block;
-    font-size: 4.5rem;
-    margin: 0.5rem 0;
+    display: inline;
+    font-size: 3.5rem;
+    margin: 0;
     text-shadow: none;
     animation: glowPulse 3s ease-in-out infinite;
 }
@@ -725,6 +725,17 @@ body {
     }
 }
 
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+}
+
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -782,8 +793,8 @@ body {
     top: 160px;
     max-height: calc(100vh - 180px);
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: #e2e8f0 transparent;
+    /* scrollbar-width: thin; */ /* Firefox only - progressive enhancement */
+    /* scrollbar-color: #e2e8f0 transparent; */ /* Firefox only - progressive enhancement */
     margin-left: -90px;
 }
 
@@ -1630,6 +1641,7 @@ body {
     border-radius: 20px;
     display: inline-block;
     -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
@@ -2401,6 +2413,7 @@ body {
     font-size: 0.7rem;
     animation: float 3s ease-in-out infinite;
     -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     white-space: nowrap;
@@ -3134,12 +3147,13 @@ body {
     }
     
     .hero h1 .welcome {
-        font-size: 1rem;
-        letter-spacing: 2px;
+        font-size: 1.2rem;
+        letter-spacing: 1px;
+        margin-right: 0.5rem;
     }
     
     .hero h1 .highlight {
-        font-size: 3rem;
+        font-size: 2.5rem;
     }
     
     .hero p {
@@ -3206,7 +3220,7 @@ body {
     
     .promo-card {
         padding: 2rem;
-        min-height: auto;
+        min-height: unset;
     }
     
     .promo-content {
@@ -3258,7 +3272,8 @@ body {
         height: 45px;
         background: rgba(255, 255, 255, 0.15);
         -webkit-backdrop-filter: blur(10px);
-        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 10px;
         display: flex;
@@ -3618,6 +3633,7 @@ body {
     height: 60px;
     background: rgba(255, 255, 255, 0.15);
     -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 12px;
@@ -3801,6 +3817,7 @@ body {
     font-size: 0.9rem;
     cursor: pointer;
     transition: all 0.3s ease;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
 
@@ -3957,6 +3974,7 @@ body {
     z-index: 1001;
     box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.2);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     animation: adminPulse 2s ease-in-out infinite;
 }

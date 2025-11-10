@@ -18,7 +18,7 @@
                     <h1>Donkomi</h1>
                 </div>
                 <h2 id="authTitle">Welcome Back</h2>
-                <p id="authSubtitle">Sign in to your Kumasi marketplace account</p>
+                <p id="authSubtitle">Sign in to your Ghana marketplace account</p>
             </div>
 
             <!-- Sign In Form -->
@@ -112,16 +112,16 @@
                     </label>
                     <select id="location" name="location" required>
                         <option value="">Select your location</option>
-                        <option value="kumasi-central">Kumasi Central</option>
-                        <option value="asokwa">Asokwa</option>
-                        <option value="bantama">Bantama</option>
-                        <option value="manhyia">Manhyia</option>
-                        <option value="subin">Subin</option>
-                        <option value="oforikrom">Oforikrom</option>
-                        <option value="kwadaso">Kwadaso</option>
-                        <option value="nhyiaeso">Nhyiaeso</option>
-                        <option value="suame">Suame</option>
-                        <option value="tafo">Tafo</option>
+                        <option value="accra">Accra</option>
+                        <option value="kumasi">Kumasi</option>
+                        <option value="tamale">Tamale</option>
+                        <option value="sekondi-takoradi">Sekondi-Takoradi</option>
+                        <option value="cape-coast">Cape Coast</option>
+                        <option value="sunyani">Sunyani</option>
+                        <option value="ho">Ho</option>
+                        <option value="koforidua">Koforidua</option>
+                        <option value="wa">Wa</option>
+                        <option value="bolgatanga">Bolgatanga</option>
                     </select>
                 </div>
 
@@ -172,7 +172,7 @@
                 <div class="notification-menu">
                     <button class="notification-btn" title="Notifications" id="notificationBtn">
                         <i class="fas fa-bell"></i>
-                        <span class="notification-badge" id="notificationCount" style="display: none;">0</span>
+                        <span class="notification-badge hidden" id="notificationCount">0</span>
                     </button>
                     <div class="notification-dropdown" id="notificationDropdown">
                         <div class="notification-header">
@@ -190,7 +190,7 @@
                 </div>
                 <button class="chat-btn" title="Chat with Support" onclick="openChat()">
                     <i class="fas fa-comments"></i>
-                    <span class="chat-badge" id="chatBadge" style="display: none;">•</span>
+                    <span class="chat-badge hidden" id="chatBadge">•</span>
                 </button>
                 <div class="user-menu">
                     <button class="user-menu-btn" id="userMenuBtn">
@@ -373,7 +373,7 @@
                                 <i class="fas fa-camera"></i>
                                 Change Photo
                             </button>
-                            <input type="file" id="avatarFileInput" accept="image/*" style="display: none;" title="Upload profile photo">
+                            <input type="file" id="avatarFileInput" accept="image/*" class="hidden" title="Upload profile photo">
                         </div>
                         <form class="profile-form" id="profileForm">
                             <div class="form-row">
@@ -397,16 +397,16 @@
                             <div class="form-group">
                                 <label>Location</label>
                                 <select name="location" id="profileLocation">
-                                    <option value="kumasi-central">Kumasi Central</option>
-                                    <option value="asokwa">Asokwa</option>
-                                    <option value="bantama">Bantama</option>
-                                    <option value="manhyia">Manhyia</option>
-                                    <option value="subin">Subin</option>
-                                    <option value="oforikrom">Oforikrom</option>
-                                    <option value="kwadaso">Kwadaso</option>
-                                    <option value="nhyiaeso">Nhyiaeso</option>
-                                    <option value="suame">Suame</option>
-                                    <option value="tafo">Tafo</option>
+                                    <option value="accra">Accra</option>
+                                    <option value="kumasi">Kumasi</option>
+                                    <option value="tamale">Tamale</option>
+                                    <option value="sekondi-takoradi">Sekondi-Takoradi</option>
+                                    <option value="cape-coast">Cape Coast</option>
+                                    <option value="sunyani">Sunyani</option>
+                                    <option value="ho">Ho</option>
+                                    <option value="koforidua">Koforidua</option>
+                                    <option value="wa">Wa</option>
+                                    <option value="bolgatanga">Bolgatanga</option>
                                 </select>
                             </div>
                             <button type="submit" class="btn-primary">Update Profile</button>
@@ -535,7 +535,7 @@
     </div>
 
     <!-- Chat Modal -->
-    <div class="chat-modal" id="chatModal" style="display: none;">
+    <div class="chat-modal" id="chatModal">
         <div class="chat-header">
             <h3><i class="fas fa-comments"></i> Support Chat</h3>
             <button class="close-chat" onclick="closeChat()">&times;</button>
@@ -552,7 +552,7 @@
         </div>
         <div class="chat-input">
             <input type="text" id="chatMessageInput" placeholder="Type your message..." title="Type your message">
-            <button id="sendChatBtn" onclick="sendMessage()">
+            <button id="sendChatBtn" onclick="sendMessage()" title="Send message">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
@@ -578,7 +578,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>City</label>
-                        <input type="text" name="city" required placeholder="Kumasi">
+                        <input type="text" name="city" required placeholder="Your city in Ghana">
                     </div>
                     <div class="form-group">
                         <label>Postal Code</label>
@@ -609,8 +609,8 @@
             </div>
             <form class="modal-form" id="addPaymentForm">
                 <div class="form-group">
-                    <label>Payment Type</label>
-                    <select name="type" required>
+                    <label for="paymentType">Payment Type</label>
+                    <select name="type" id="paymentType" required>
                         <option value="">Select payment type</option>
                         <option value="mobile-money">Mobile Money</option>
                         <option value="card">Credit/Debit Card</option>

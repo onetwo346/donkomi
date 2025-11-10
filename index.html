@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donkomi - Kumasi's Premium Marketplace</title>
+    <title>Donkomi - Ghana's Premium Marketplace</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
@@ -17,13 +17,13 @@
                 <span>Donkomi</span>
             </div>
             <div class="nav-search">
-                <input type="text" placeholder="Search for products in Kumasi...">
+                <input type="text" placeholder="Search for products across Ghana...">
                 <button title="Search" aria-label="Search for products"><i class="fas fa-search"></i></button>
             </div>
             <div class="nav-actions">
-                <button class="location-btn" title="Location: Kumasi" aria-label="Current location: Kumasi">
+                <button class="location-btn" title="Location: Ghana" aria-label="Current location: Ghana">
                     <i class="fas fa-map-marker-alt"></i>
-                    <span>Kumasi</span>
+                    <span>Ghana</span>
                 </button>
                 <button class="cart-btn" title="Shopping Cart" aria-label="View shopping cart">
                     <i class="fas fa-shopping-cart"></i>
@@ -197,7 +197,7 @@
     <section class="hero">
         <!-- Video Background -->
         <div class="hero-video-container">
-            <video class="hero-video" autoplay muted loop playsinline>
+            <video class="hero-video" autoplay muted loop>
                 <source src="D0BEB381-E692-45D3-A4A7-8EF87869B176.mp4" type="video/mp4">
                 <!-- Fallback gradient background if video doesn't load -->
             </video>
@@ -210,7 +210,7 @@
                     <span class="welcome">Welcome to</span>
                     <span class="highlight">Donkomi</span>
                 </h1>
-            <p>Kumasi's trusted marketplace for quality products and amazing deals</p>
+            <p>Ghana's trusted marketplace for quality products and amazing deals</p>
             <div class="hero-buttons">
                     <a href="#featured-products" class="btn-primary">
                         <i class="fas fa-shopping-cart"></i>
@@ -270,7 +270,7 @@
                 <aside class="category-sidebar">
                     <div class="sidebar-header">
             <h2>Shop by Category</h2>
-                        <p>Discover thousands of products across all major categories in Kumasi</p>
+                        <p>Discover thousands of products across all major categories in Ghana</p>
                     </div>
                     
                     <!-- Featured Products Button -->
@@ -544,7 +544,7 @@
                             <span><i class="fas fa-check"></i> Limited Time</span>
                             <span><i class="fas fa-check"></i> Free Shipping</span>
                         </div>
-                        <button class="btn-primary" onclick="handlePromoClick('clearance')">
+                        <button class="btn-primary" onclick="handlePromoClick('clearance', event)">
                             <i class="fas fa-shopping-cart"></i>
                             Shop Now
                         </button>
@@ -572,7 +572,7 @@
                             <span><i class="fas fa-check"></i> Latest Trends</span>
                             <span><i class="fas fa-check"></i> Premium Quality</span>
                         </div>
-                        <button class="btn-secondary" onclick="handlePromoClick('new-arrivals')">
+                        <button class="btn-secondary" onclick="handlePromoClick('new-arrivals', event)">
                             <i class="fas fa-eye"></i>
                             Explore
                         </button>
@@ -595,12 +595,12 @@
                             <i class="fas fa-shipping-fast"></i>
                         </div>
                         <h3>Free Delivery</h3>
-                        <p>On orders over ₵50 in Kumasi</p>
+                        <p>On orders over ₵50 nationwide</p>
                         <div class="promo-features">
                             <span><i class="fas fa-check"></i> Same Day</span>
                             <span><i class="fas fa-check"></i> Tracked</span>
                         </div>
-                        <button class="btn-secondary" onclick="handlePromoClick('delivery')">
+                        <button class="btn-secondary" onclick="handlePromoClick('delivery', event)">
                             <i class="fas fa-info-circle"></i>
                             Learn More
                         </button>
@@ -635,7 +635,7 @@
             <div class="footer-content">
                 <div class="footer-section">
                     <h3>Donkomi</h3>
-                    <p>Kumasi's trusted marketplace for quality products and amazing deals.</p>
+                    <p>Ghana's trusted marketplace for quality products and amazing deals.</p>
                 </div>
                 <div class="footer-section">
                     <h4>Quick Links</h4>
@@ -659,7 +659,7 @@
                     <h4>Contact Info</h4>
                     <p><i class="fas fa-phone"></i> +233 24 123 4567</p>
                     <p><i class="fas fa-envelope"></i> info@donkomi.com</p>
-                    <p><i class="fas fa-map-marker-alt"></i> Adum, Kumasi, Ghana</p>
+                    <p><i class="fas fa-map-marker-alt"></i> Nationwide, Ghana</p>
                 </div>
             </div>
             <div class="footer-bottom">

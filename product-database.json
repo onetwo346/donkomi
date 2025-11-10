@@ -1,0 +1,32 @@
+{
+  "vitamins": [
+    {
+      "id": 1,
+      "name": "Vitamin C 1000mg Tablets",
+      "price": 45.99,
+      "originalPrice": 65.99,
+      "image": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop",
+      "description": "High-potency Vitamin C for immune support",
+      "badge": "Popular"
+    },
+    {
+      "id": 2,
+      "name": "Omega-3 Fish Oil Capsules",
+      "price": 89.99,
+      "originalPrice": 120.99,
+      "image": "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop",
+      "description": "Premium fish oil for heart health"
+    }
+  ],
+  "electronics": [
+    {
+      "id": 3,
+      "name": "iPhone 15 Pro",
+      "price": 1299.99,
+      "originalPrice": 1499.99,
+      "image": "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=300&h=300&fit=crop",
+      "description": "Latest iPhone with advanced features",
+      "badge": "New"
+    }
+  ]
+}

@@ -204,8 +204,8 @@ class Cart {
                         <input type="tel" id="phone" placeholder="+233 XX XXX XXXX" required>
                     </div>
                     <div class="form-group">
-                        <label for="address">Delivery Address (Kumasi)</label>
-                        <textarea id="address" placeholder="Enter your Kumasi address..." required></textarea>
+                        <label for="address">Delivery Address</label>
+                        <textarea id="address" placeholder="Enter your delivery address in Ghana..." required></textarea>
                     </div>
                     <div class="form-group">
                         <label for="payment">Payment Method</label>
@@ -262,7 +262,7 @@ class Cart {
             orderId: 'ORD-' + Date.now(),
             date: new Date().toISOString(),
             status: 'pending',
-            location: 'Kumasi, Ghana'
+            location: 'Ghana'
         };
 
         // Simulate order processing
@@ -309,32 +309,12 @@ class Cart {
                     <p><strong>Payment:</strong> ${orderData.customer.payment}</p>
                     <p><strong>Location:</strong> ${orderData.location}</p>
                 </div>
-                <p class="delivery-info">You will receive a confirmation SMS shortly. Our Kumasi team will contact you to confirm payment and delivery details.</p>
+                <p class="delivery-info">You will receive a confirmation SMS shortly. Our team will contact you to confirm payment and delivery details.</p>
                 <button class="btn-primary" onclick="this.parentElement.parentElement.remove()">Continue Shopping</button>
             </div>
         `;
 
         document.body.appendChild(confirmation);
-    }
-
-    showNotification(message, type = 'success') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.innerHTML = `
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-            <span>${message}</span>
-        `;
-
-        document.body.appendChild(notification);
-
-        // Animate in
-        setTimeout(() => notification.classList.add('show'), 100);
-
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => document.body.removeChild(notification), 300);
-        }, 3000);
     }
 
     saveToStorage() {
@@ -467,9 +447,106 @@ const cart = new Cart();
     // Add event listeners for promotional buttons
     addPromoButtonListeners();
     
+    // Listen for product database changes from admin panel
+    setupProductDatabaseListener();
+    
     console.log('Page loaded, displaying featured products');
     console.log('🔄 Product sync system active:', !!window.productSync);
 });
+
+// Setup listener for product database changes
+function setupProductDatabaseListener() {
+    // Listen for storage changes (when admin adds/updates products)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'donkomi-product-database') {
+            console.log('🔔 MAIN WEBSITE: Product database updated by admin!');
+            console.log('📦 MAIN WEBSITE: Storage event details:', {
+                key: e.key,
+                oldValue: e.oldValue ? 'exists' : 'null',
+                newValue: e.newValue ? 'exists' : 'null'
+            });
+            
+            // Reload the product database
+            if (window.productSync) {
+                const oldProductCount = window.productSync.getAllProducts().length;
+                window.productSync.loadFromStorage();
+                const newProductCount = window.productSync.getAllProducts().length;
+                console.log('📊 MAIN WEBSITE: Product count changed from', oldProductCount, 'to', newProductCount);
+            }
+            
+            // Refresh the current product display
+            const activeCategory = document.querySelector('.category-btn.active')?.dataset.category || 'all';
+            console.log('🔄 MAIN WEBSITE: Refreshing display for category:', activeCategory);
+            displayProducts(activeCategory);
+            
+            // Update category stats
+            updateCategoryStats();
+            
+            // Show notification to user
+            showProductUpdateNotification();
+            
+            console.log('✅ MAIN WEBSITE: Updated successfully!');
+        }
+    });
+    
+    // Also listen for custom storage events (for same-tab updates)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'donkomi-product-database' && e.url && e.url.includes('admin.html')) {
+            console.log('🔔 MAIN WEBSITE: Received storage event from admin panel');
+            // Handle the same way as cross-tab storage events
+            if (window.productSync) {
+                window.productSync.loadFromStorage();
+                displayProducts('all');
+                updateCategoryStats();
+                showProductUpdateNotification();
+            }
+        }
+    });
+    
+    console.log('👂 MAIN WEBSITE: Listening for admin product updates (cross-tab and same-tab)...');
+}
+
+// Show notification when products are updated
+function showProductUpdateNotification() {
+    // Create a subtle notification
+    const notification = document.createElement('div');
+    notification.className = 'product-update-notification';
+    notification.innerHTML = `
+        <i class="fas fa-sync-alt"></i>
+        <span>Products updated! New items available.</span>
+    `;
+    
+    // Add styles
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
 
 // Add event listeners for promotional buttons
 function addPromoButtonListeners() {
@@ -744,12 +821,21 @@ class ProductDatabaseSync {
         if (savedDatabase) {
             try {
                 const parsedDatabase = JSON.parse(savedDatabase);
-                // Merge with existing database to preserve default products
-                productDatabase = { ...productDatabase, ...parsedDatabase };
-                console.log('📦 Product database loaded from localStorage:', Object.keys(productDatabase).length, 'categories');
+                // Replace with stored database to get latest products from admin
+                productDatabase = parsedDatabase;
+                console.log('📦 MAIN WEBSITE: Product database loaded from localStorage:', Object.keys(productDatabase).length, 'categories');
+                
+                // Count total products
+                let totalProducts = 0;
+                Object.keys(productDatabase).forEach(category => {
+                    totalProducts += productDatabase[category].length;
+                });
+                console.log('📊 MAIN WEBSITE: Total products loaded:', totalProducts);
             } catch (error) {
-                console.error('❌ Error loading product database from localStorage:', error);
+                console.error('❌ MAIN WEBSITE: Error loading product database from localStorage:', error);
             }
+        } else {
+            console.log('📦 MAIN WEBSITE: No stored database found, using default products');
         }
     }
 
@@ -883,7 +969,8 @@ class ProductDatabaseSync {
             if (e.key === this.storageKey && e.newValue) {
                 try {
                     const newDatabase = JSON.parse(e.newValue);
-                    productDatabase = { ...productDatabase, ...newDatabase };
+                    // Replace entire database instead of merging
+                    productDatabase = newDatabase;
                     console.log('🔄 Product database updated from storage event');
                     
                     // Trigger UI updates
@@ -904,6 +991,12 @@ class ProductDatabaseSync {
 // Initialize product database sync
 const productSync = new ProductDatabaseSync();
 window.productSync = productSync; // Make it globally available
+
+// Ensure default products are saved to storage if not already present
+if (!localStorage.getItem('donkomi-product-database')) {
+    console.log('🚀 MAIN WEBSITE: Initializing storage with default products');
+    productSync.saveToStorage();
+}
 
 // User login status management
 function checkUserLoginStatus() {
@@ -1435,19 +1528,27 @@ function displayProducts(category = 'all', container = '.product-grid') {
     if (category === 'all' || category === 'featured') {
         // Show products from all categories (mixed)
         let allProducts = [];
-        Object.keys(productDatabase).forEach(cat => {
-            const categoryProducts = productDatabase[cat].slice(0, 2); // 2 products per category
-            categoryProducts.forEach(product => {
-                product.categoryKey = cat;
-                allProducts.push(product);
+        
+        // Get products from productSync system if available
+        if (window.productSync) {
+            allProducts = window.productSync.getAllProducts();
+        } else {
+            // Fallback to static productDatabase
+            Object.keys(productDatabase).forEach(cat => {
+                const categoryProducts = productDatabase[cat].slice(0, 2);
+                categoryProducts.forEach(product => {
+                    product.categoryKey = cat;
+                    allProducts.push(product);
+                });
             });
-        });
+        }
         
         // Shuffle and limit to 12 products for featured section
         allProducts = allProducts.sort(() => Math.random() - 0.5).slice(0, 12);
         
         allProducts.forEach(product => {
-            productsHTML += generateProductHTML(product, product.categoryKey);
+            const categoryKey = product.category || product.categoryKey || 'general';
+            productsHTML += generateProductHTML(product, categoryKey);
         });
     } else {
         // Handle grouped categories
@@ -1468,8 +1569,17 @@ function displayProducts(category = 'all', container = '.product-grid') {
         
         // Load products from the specified categories
         categoriesToShow.forEach(cat => {
-            const products = loadProductsForCategory(cat, 4); // 4 products per subcategory
-            products.forEach(product => {
+            let products = [];
+            
+            // Get products from productSync system if available
+            if (window.productSync) {
+                products = window.productSync.getProductsByCategory(cat);
+            } else {
+                // Fallback to static productDatabase
+                products = loadProductsForCategory(cat, 4);
+            }
+            
+            products.slice(0, 4).forEach(product => {
                 productsHTML += generateProductHTML(product, cat);
             });
         });
@@ -1484,7 +1594,17 @@ function displayProducts(category = 'all', container = '.product-grid') {
 }
 
 function addProductToCart(productId, category) {
-    const product = productDatabase[category]?.find(p => p.id === productId);
+    let product = null;
+    
+    // Try to find product from productSync system first
+    if (window.productSync) {
+        const allProducts = window.productSync.getAllProducts();
+        product = allProducts.find(p => p.id === productId);
+    } else {
+        // Fallback to static productDatabase
+        product = productDatabase[category]?.find(p => p.id === productId);
+    }
+    
     if (product) {
         const cartProduct = {
             id: productId,
@@ -1560,11 +1680,11 @@ function openAdminPortal() {
 }
 
 // Handle promotional button clicks
-function handlePromoClick(type) {
+function handlePromoClick(type, event) {
     console.log('Promo button clicked:', type); // Debug log
     
     // Add visual feedback
-    const button = event.target.closest('button');
+    const button = event ? event.target.closest('button') : null;
     if (button) {
         button.style.transform = 'scale(0.95)';
         setTimeout(() => {
@@ -1579,8 +1699,8 @@ function handlePromoClick(type) {
             if (typeof filterByCategory === 'function') {
                 filterByCategory('all');
             }
-            if (typeof showNotification === 'function') {
-                showNotification('Showing clearance items!', 'success');
+            if (window.cart && typeof window.cart.showNotification === 'function') {
+                window.cart.showNotification('Showing clearance items!', 'success');
             }
             
             // Scroll to products section
@@ -1599,8 +1719,8 @@ function handlePromoClick(type) {
             if (typeof filterByCategory === 'function') {
                 filterByCategory('all');
             }
-            if (typeof showNotification === 'function') {
-                showNotification('Showing latest arrivals!', 'success');
+            if (window.cart && typeof window.cart.showNotification === 'function') {
+                window.cart.showNotification('Showing latest arrivals!', 'success');
             }
             
             // Scroll to products section
@@ -1650,7 +1770,7 @@ function showDeliveryInfo() {
                     <div class="delivery-info-item">
                         <i class="fas fa-map-marker-alt"></i>
                         <h4>Delivery Areas</h4>
-                        <p>Free delivery available in Kumasi and surrounding areas</p>
+                        <p>Free delivery available nationwide in Ghana</p>
                     </div>
                     <div class="delivery-info-item">
                         <i class="fas fa-money-bill-wave"></i>

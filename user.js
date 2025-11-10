@@ -189,14 +189,14 @@ class UserPortal {
             signInForm.style.display = 'none';
             signUpForm.style.display = 'block';
             authTitle.textContent = 'Create Account';
-            authSubtitle.textContent = 'Join Kumasi\'s trusted marketplace';
+            authSubtitle.textContent = 'Join Ghana\'s trusted marketplace';
             switchText.textContent = 'Already have an account?';
             switchLink.textContent = 'Sign in here';
         } else {
             signInForm.style.display = 'block';
             signUpForm.style.display = 'none';
             authTitle.textContent = 'Welcome Back';
-            authSubtitle.textContent = 'Sign in to your Kumasi marketplace account';
+            authSubtitle.textContent = 'Sign in to your Ghana marketplace account';
             switchText.textContent = 'Don\'t have an account?';
             switchLink.textContent = 'Sign up here';
         }
@@ -847,16 +847,29 @@ class UserPortal {
     openChat() {
         const chatModal = document.getElementById('chatModal');
         if (chatModal) {
-            chatModal.style.display = 'block';
+            chatModal.style.display = 'flex';
+            // Trigger reflow to ensure display change takes effect
+            chatModal.offsetHeight;
+            chatModal.classList.add('show');
             this.loadChatHistory();
             this.markMessagesAsRead();
+            
+            // Focus on input after animation
+            setTimeout(() => {
+                const input = document.getElementById('chatMessageInput');
+                if (input) input.focus();
+            }, 300);
         }
     }
 
     closeChat() {
         const chatModal = document.getElementById('chatModal');
         if (chatModal) {
-            chatModal.style.display = 'none';
+            chatModal.classList.remove('show');
+            // Hide after animation completes
+            setTimeout(() => {
+                chatModal.style.display = 'none';
+            }, 300);
         }
     }
 
@@ -894,7 +907,14 @@ class UserPortal {
         `).join('');
 
         messagesContainer.innerHTML = messagesHTML;
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        // Smooth scroll to bottom
+        setTimeout(() => {
+            messagesContainer.scrollTo({
+                top: messagesContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 100);
     }
 
     sendMessage() {
@@ -927,7 +947,20 @@ class UserPortal {
         chatHistory[userChatId].messages.push(newMessage);
         localStorage.setItem('donkomi-chat', JSON.stringify(chatHistory));
 
+        // Clear input and disable temporarily
         input.value = '';
+        input.disabled = true;
+        
+        // Show typing indicator briefly
+        this.showTypingIndicator();
+        
+        // Re-enable input after a short delay
+        setTimeout(() => {
+            input.disabled = false;
+            input.focus();
+            this.hideTypingIndicator();
+        }, 1000);
+
         this.loadChatHistory();
         this.updateChatBadge();
 
@@ -1021,6 +1054,43 @@ class UserPortal {
             chatBadge.style.display = hasUnread ? 'flex' : 'none';
         } else {
             chatBadge.style.display = show ? 'flex' : 'none';
+        }
+    }
+
+    showTypingIndicator() {
+        const messagesContainer = document.getElementById('chatMessages');
+        if (!messagesContainer) return;
+
+        // Remove existing typing indicator
+        this.hideTypingIndicator();
+
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        typingIndicator.id = 'typingIndicator';
+        typingIndicator.innerHTML = `
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span style="font-size: 0.85rem; color: #6b7280; margin-left: 0.5rem;">Support is typing...</span>
+        `;
+
+        messagesContainer.appendChild(typingIndicator);
+        
+        // Smooth scroll to show typing indicator
+        setTimeout(() => {
+            messagesContainer.scrollTo({
+                top: messagesContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 100);
+    }
+
+    hideTypingIndicator() {
+        const typingIndicator = document.getElementById('typingIndicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
         }
     }
 

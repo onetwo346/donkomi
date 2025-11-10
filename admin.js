@@ -272,11 +272,11 @@ class AdminPortal {
                     </div>
             </div>
                 <div class="product-actions">
-                    <button class="btn-secondary" onclick="adminPortal.editProduct('${product.id}')">
+                    <button class="btn-secondary" onclick="adminPortal.editProduct('${product.id}')" title="Edit product">
                         <i class="fas fa-edit"></i>
                         Edit
                     </button>
-                    <button class="btn-danger" onclick="adminPortal.deleteProduct('${product.id}')">
+                    <button class="btn-danger" onclick="adminPortal.deleteProduct('${product.id}')" title="Delete product">
                         <i class="fas fa-trash"></i>
                         Delete
                     </button>
@@ -407,7 +407,22 @@ class AdminPortal {
     addProduct() {
         const form = document.getElementById('addProductForm');
         const formData = new FormData(form);
+        const imageFile = formData.get('image');
         
+        // Handle image upload
+        if (imageFile && imageFile.size > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.createAndSaveProduct(formData, e.target.result);
+            };
+            reader.readAsDataURL(imageFile);
+        } else {
+            // No image uploaded, use placeholder
+            this.createAndSaveProduct(formData, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop');
+        }
+    }
+
+    createAndSaveProduct(formData, imageDataUrl) {
         const product = {
             id: Date.now().toString(),
             name: formData.get('name'),
@@ -415,7 +430,7 @@ class AdminPortal {
             price: parseFloat(formData.get('price')),
             originalPrice: formData.get('originalPrice') ? parseFloat(formData.get('originalPrice')) : null,
             description: formData.get('description'),
-            image: this.getImagePreview(formData.get('image')),
+            image: imageDataUrl,
             badge: formData.get('badge') || null,
             dateAdded: new Date().toISOString()
         };
@@ -431,7 +446,17 @@ class AdminPortal {
         
         this.showNotification('Product added successfully!', 'success');
         this.closeModal('addProductModal');
-        form.reset();
+        document.getElementById('addProductForm').reset();
+        
+        // Clear the image preview
+        const preview = document.querySelector('#addProductModal .upload-preview');
+        if (preview) {
+            preview.innerHTML = `
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Click to upload image</p>
+            `;
+        }
+        
         this.loadProducts();
     }
 
@@ -471,8 +496,19 @@ class AdminPortal {
     }
 
     editProduct(productId) {
-        const product = this.products.find(p => p.id === productId);
-        if (!product) return;
+        // Find product from the sync system
+        let product = null;
+        if (window.productSync) {
+            const allProducts = window.productSync.getAllProducts();
+            product = allProducts.find(p => p.id == productId);
+        } else {
+            product = this.products.find(p => p.id === productId);
+        }
+        
+        if (!product) {
+            this.showNotification('Product not found!', 'error');
+            return;
+        }
 
         const form = document.getElementById('editProductForm');
         form.querySelector('[name="productId"]').value = product.id;
@@ -496,7 +532,22 @@ class AdminPortal {
         const form = document.getElementById('editProductForm');
         const formData = new FormData(form);
         const productId = formData.get('productId');
+        const imageFile = formData.get('image');
 
+        // Handle image update
+        if (imageFile && imageFile.size > 0) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                this.saveUpdatedProduct(formData, productId, e.target.result);
+            };
+            reader.readAsDataURL(imageFile);
+        } else {
+            // No new image uploaded, keep existing image
+            this.saveUpdatedProduct(formData, productId, null);
+        }
+    }
+
+    saveUpdatedProduct(formData, productId, newImageDataUrl) {
         const updatedProduct = {
             id: productId,
             name: formData.get('name'),
@@ -507,10 +558,22 @@ class AdminPortal {
             badge: formData.get('badge') || null
         };
 
-        // Handle image update
-        const imageFile = formData.get('image');
-        if (imageFile && imageFile.size > 0) {
-            updatedProduct.image = this.getImagePreview(imageFile);
+        // Set image - either new upload or keep existing
+        if (newImageDataUrl) {
+            updatedProduct.image = newImageDataUrl;
+        } else {
+            // Keep existing image from sync system
+            let existingProduct = null;
+            if (window.productSync) {
+                const allProducts = window.productSync.getAllProducts();
+                existingProduct = allProducts.find(p => p.id == productId);
+            } else {
+                existingProduct = this.products.find(p => p.id === productId);
+            }
+            
+            if (existingProduct) {
+                updatedProduct.image = existingProduct.image;
+            }
         }
 
         // Use the sync system to update product
@@ -532,7 +595,7 @@ class AdminPortal {
                 this.showNotification('Product not found!', 'error');
             }
         }
-        
+
         this.closeModal('editProductModal');
         this.loadProducts();
     }
@@ -587,8 +650,18 @@ class AdminPortal {
     }
 
     getImagePreview(file) {
-        // For demo purposes, we'll use a placeholder
-        // In a real app, you'd upload to a server and get a URL
+        // Get the actual uploaded image data URL from the preview
+        if (!file) return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop';
+        
+        // Check if there's a preview image already created
+        const preview = document.querySelector('#addProductModal .upload-preview img') || 
+                       document.querySelector('#editProductModal .upload-preview img');
+        
+        if (preview && preview.src && preview.src.startsWith('data:')) {
+            return preview.src;
+        }
+        
+        // Fallback to placeholder if no preview available
         return 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop';
     }
 
@@ -641,16 +714,45 @@ class AdminPortal {
         const file = input.files[0];
 
         if (file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                this.showNotification('Please select a valid image file.', 'error');
+                input.value = ''; // Clear the input
+                return;
+            }
+
+            // Validate file size (max 5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+            if (file.size > maxSize) {
+                this.showNotification('Image file size should be less than 5MB.', 'error');
+                input.value = ''; // Clear the input
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = function(e) {
-                preview.innerHTML = `<img src="${e.target.result}" alt="Preview" style="max-width: 100%; height: auto;">`;
+                preview.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #64748b;">Image selected successfully</p>
+                `;
+            };
+            reader.onerror = () => {
+                this.showNotification('Error reading the image file.', 'error');
+                input.value = ''; // Clear the input
             };
             reader.readAsDataURL(file);
         }
     }
 
     filterProducts(searchTerm) {
-        const filteredProducts = this.products.filter(product => 
+        let products = [];
+        if (window.productSync) {
+            products = window.productSync.getAllProducts();
+        } else {
+            products = this.products;
+        }
+        
+        const filteredProducts = products.filter(product => 
             product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             product.category.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -662,7 +764,15 @@ class AdminPortal {
             this.loadProducts();
             return;
         }
-        const filteredProducts = this.products.filter(product => product.category === category);
+        
+        let products = [];
+        if (window.productSync) {
+            products = window.productSync.getAllProducts();
+        } else {
+            products = this.products;
+        }
+        
+        const filteredProducts = products.filter(product => product.category === category);
         this.renderFilteredProducts(filteredProducts);
     }
 
