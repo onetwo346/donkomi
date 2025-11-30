@@ -3,12 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Donkomi - Ghana's trusted marketplace for quality products. Shop electronics, vehicles, health & beauty, food & agriculture with fast nationwide delivery.">
+    <meta name="keywords" content="Ghana marketplace, online shopping Ghana, electronics Ghana, vehicles Ghana, health beauty Ghana, agriculture Ghana, Donkomi">
+    <meta name="author" content="Donkomi">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Donkomi - Ghana's Premium Marketplace">
+    <meta property="og:description" content="Shop quality products with fast nationwide delivery. Electronics, vehicles, health & beauty, and more.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://donkomi.com">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&h=630&fit=crop">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
     <title>Donkomi - Ghana's Premium Marketplace</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Skip to Main Content Link for Accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
@@ -262,7 +278,7 @@
     </section>
 
     <!-- Main Content Area with Sidebar -->
-    <section class="main-content">
+    <section class="main-content" id="main-content">
         <div class="container">
             <div class="content-layout">
                 
@@ -636,6 +652,12 @@
                 <div class="footer-section">
                     <h3>Donkomi</h3>
                     <p>Ghana's trusted marketplace for quality products and amazing deals.</p>
+                    <div class="social-links">
+                        <a href="#" title="Facebook" aria-label="Follow us on Facebook"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" title="Twitter" aria-label="Follow us on Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" title="Instagram" aria-label="Follow us on Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" title="WhatsApp" aria-label="Contact us on WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                    </div>
                 </div>
                 <div class="footer-section">
                     <h4>Quick Links</h4>
@@ -663,7 +685,7 @@
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2024 Donkomi. All rights reserved.</p>
+                <p>&copy; 2025 Donkomi. All rights reserved.</p>
                 <button class="admin-login-btn" onclick="openAdminPortal()">
                     <i class="fas fa-lock"></i> Admin Portal
                 </button>
@@ -693,6 +715,22 @@
 
     <!-- Cart Overlay -->
     <div class="cart-overlay" id="cartOverlay"></div>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-to-top" id="scrollToTop" title="Scroll to top" aria-label="Scroll to top">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- Page Loading Overlay -->
+    <div class="page-loader" id="pageLoader">
+        <div class="loader-content">
+            <div class="loader-logo">
+                <i class="fas fa-shopping-bag"></i>
+                <span>Donkomi</span>
+            </div>
+            <div class="loader-spinner"></div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

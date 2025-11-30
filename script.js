@@ -1485,13 +1485,127 @@ function updateCategoryStats() {
 // Initialize category stats
 updateCategoryStats();
 
+// Wishlist functionality
+class Wishlist {
+    constructor() {
+        this.items = [];
+        this.storageKey = 'donkomi-wishlist';
+        this.loadFromStorage();
+    }
+    
+    loadFromStorage() {
+        const saved = localStorage.getItem(this.storageKey);
+        if (saved) {
+            try {
+                this.items = JSON.parse(saved);
+            } catch (e) {
+                this.items = [];
+            }
+        }
+    }
+    
+    saveToStorage() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.items));
+    }
+    
+    isInWishlist(productId) {
+        return this.items.some(item => item.id === productId);
+    }
+    
+    toggle(product) {
+        if (this.isInWishlist(product.id)) {
+            this.remove(product.id);
+            return false;
+        } else {
+            this.add(product);
+            return true;
+        }
+    }
+    
+    add(product) {
+        if (!this.isInWishlist(product.id)) {
+            this.items.push(product);
+            this.saveToStorage();
+            if (window.cart) {
+                window.cart.showNotification('Added to wishlist!', 'success');
+            }
+        }
+    }
+    
+    remove(productId) {
+        this.items = this.items.filter(item => item.id !== productId);
+        this.saveToStorage();
+        if (window.cart) {
+            window.cart.showNotification('Removed from wishlist', 'info');
+        }
+    }
+    
+    getAll() {
+        return this.items;
+    }
+}
+
+// Initialize wishlist
+const wishlist = new Wishlist();
+window.wishlist = wishlist;
+
+// Toggle wishlist function
+function toggleWishlist(productId, category, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    // Find the product
+    let product = null;
+    if (window.productSync) {
+        const allProducts = window.productSync.getAllProducts();
+        product = allProducts.find(p => p.id === productId);
+    } else if (productDatabase[category]) {
+        product = productDatabase[category].find(p => p.id === productId);
+    }
+    
+    if (product) {
+        const added = wishlist.toggle({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+            category: category
+        });
+        
+        // Update the heart icon
+        const heartBtn = event?.target?.closest('.wishlist-btn');
+        if (heartBtn) {
+            const icon = heartBtn.querySelector('i');
+            if (added) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                heartBtn.classList.add('active');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                heartBtn.classList.remove('active');
+            }
+        }
+    }
+}
+
+window.toggleWishlist = toggleWishlist;
+
 // Product generation and display functions
 function generateProductHTML(product, category) {
     const badgeHTML = product.badge ? `<span class="product-badge">${product.badge}</span>` : '';
+    const isInWishlist = wishlist.isInWishlist(product.id);
+    const heartClass = isInWishlist ? 'fas' : 'far';
+    const activeClass = isInWishlist ? 'active' : '';
     
     return `
-        <div class="product-card" data-category="${category}">
+        <div class="product-card" data-category="${category}" data-product-id="${product.id}">
             ${badgeHTML}
+            <button class="wishlist-btn ${activeClass}" onclick="toggleWishlist(${product.id}, '${category}', event)" title="Add to Wishlist" aria-label="Add to wishlist">
+                <i class="${heartClass} fa-heart"></i>
+            </button>
             <div class="product-image">
                 <img src="${product.image}" alt="${product.name}" loading="lazy">
                 <div class="product-overlay">
@@ -1505,7 +1619,9 @@ function generateProductHTML(product, category) {
                     <span class="current-price">₵${product.price.toFixed(2)}</span>
                     ${product.originalPrice ? `<span class="original-price">₵${product.originalPrice.toFixed(2)}</span>` : ''}
                 </div>
-                <button class="add-to-cart" onclick="addProductToCart(${product.id}, '${category}')">Add to Cart</button>
+                <button class="add-to-cart" onclick="addProductToCart(${product.id}, '${category}')">
+                    <i class="fas fa-shopping-cart"></i> Add to Cart
+                </button>
             </div>
         </div>
     `;
@@ -1747,6 +1863,55 @@ function handlePromoClick(type, event) {
 // Make functions globally accessible
 window.handlePromoClick = handlePromoClick;
 window.showDeliveryInfo = showDeliveryInfo;
+
+// Scroll to Top Button Functionality
+function initScrollToTop() {
+    const scrollToTopBtn = document.getElementById('scrollToTop');
+    
+    if (!scrollToTopBtn) return;
+    
+    // Show/hide button based on scroll position
+    window.addEventListener('scroll', () => {
+        if (window.pageYOffset > 300) {
+            scrollToTopBtn.classList.add('visible');
+        } else {
+            scrollToTopBtn.classList.remove('visible');
+        }
+    });
+    
+    // Scroll to top when clicked
+    scrollToTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+}
+
+// Page Loader
+function initPageLoader() {
+    const pageLoader = document.getElementById('pageLoader');
+    
+    if (!pageLoader) return;
+    
+    // Hide loader when page is fully loaded
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            pageLoader.classList.add('hidden');
+        }, 500);
+    });
+    
+    // Fallback: hide loader after 3 seconds max
+    setTimeout(() => {
+        if (pageLoader && !pageLoader.classList.contains('hidden')) {
+            pageLoader.classList.add('hidden');
+        }
+    }, 3000);
+}
+
+// Initialize scroll to top and page loader
+initScrollToTop();
+initPageLoader();
 
 // Show delivery information modal
 function showDeliveryInfo() {
