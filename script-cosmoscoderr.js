@@ -447,9 +447,64 @@ const cart = new Cart();
     // Add event listeners for promotional buttons
     addPromoButtonListeners();
     
+    // Listen for product database changes from admin panel
+    setupProductDatabaseListener();
+    
     console.log('Page loaded, displaying featured products');
     console.log('🔄 Product sync system active:', !!window.productSync);
 });
+
+// Setup listener for product database changes
+function setupProductDatabaseListener() {
+    // Listen for storage changes (when admin adds/updates products)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'donkomi-product-database') {
+            console.log('🔔 MAIN WEBSITE: Product database updated by admin!');
+            console.log('📦 MAIN WEBSITE: Storage event details:', {
+                key: e.key,
+                oldValue: e.oldValue ? 'exists' : 'null',
+                newValue: e.newValue ? 'exists' : 'null'
+            });
+            
+            // Reload the product database
+            if (window.productSync) {
+                const oldProductCount = window.productSync.getAllProducts().length;
+                window.productSync.loadFromStorage();
+                const newProductCount = window.productSync.getAllProducts().length;
+                console.log('📊 MAIN WEBSITE: Product count changed from', oldProductCount, 'to', newProductCount);
+            }
+            
+            // Refresh the current product display
+            const activeCategory = document.querySelector('.category-btn.active')?.dataset.category || 'all';
+            console.log('🔄 MAIN WEBSITE: Refreshing display for category:', activeCategory);
+            displayProducts(activeCategory);
+            
+            // Update category stats
+            updateCategoryStats();
+            
+            // Show notification to user
+            showProductUpdateNotification();
+            
+            console.log('✅ MAIN WEBSITE: Updated successfully!');
+        }
+    });
+    
+    // Also listen for custom storage events (for same-tab updates)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'donkomi-product-database' && e.url && e.url.includes('admin.html')) {
+            console.log('🔔 MAIN WEBSITE: Received storage event from admin panel');
+            // Handle the same way as cross-tab storage events
+            if (window.productSync) {
+                window.productSync.loadFromStorage();
+                displayProducts('all');
+                updateCategoryStats();
+                showProductUpdateNotification();
+            }
+        }
+    });
+    
+    console.log('👂 MAIN WEBSITE: Listening for admin product updates (cross-tab and same-tab)...');
+}
 
 // Show notification when products are updated
 function showProductUpdateNotification() {
@@ -555,27 +610,37 @@ document.getElementById('mobileMenuOverlay').addEventListener('click', function(
 let currentCategory = 'all';
 let allProducts = [];
 
-// Slim product database — 2 products per category (admin can add more via admin panel)
+// Comprehensive product database with localStorage sync
 let productDatabase = {
     'vitamins': [
         { id: 1, name: "Vitamin C 1000mg Tablets", price: 45.99, originalPrice: 65.99, image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop", description: "High-potency Vitamin C for immune support", badge: "Popular" },
-        { id: 2, name: "Omega-3 Fish Oil Capsules", price: 89.99, originalPrice: 120.99, image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop", description: "Premium fish oil for heart health" }
+        { id: 2, name: "Omega-3 Fish Oil Capsules", price: 89.99, originalPrice: 120.99, image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop", description: "Premium fish oil for heart health" },
+        { id: 3, name: "Multivitamin for Women", price: 67.50, originalPrice: 85.00, image: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=300&h=300&fit=crop", description: "Complete daily nutrition for women" },
+        { id: 4, name: "Vitamin D3 5000 IU", price: 32.99, originalPrice: 42.99, image: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=300&h=300&fit=crop", description: "Bone health and immune support" }
     ],
     'fragrances': [
         { id: 5, name: "Chanel No. 5 Eau de Parfum", price: 299.99, originalPrice: 350.00, image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=300&h=300&fit=crop", description: "Classic French perfume", badge: "Premium" },
-        { id: 6, name: "Dior Sauvage Men's Cologne", price: 245.00, originalPrice: 280.00, image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&h=300&fit=crop", description: "Fresh and bold masculine scent" }
+        { id: 6, name: "Dior Sauvage Men's Cologne", price: 245.00, originalPrice: 280.00, image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&h=300&fit=crop", description: "Fresh and bold masculine scent" },
+        { id: 7, name: "Victoria's Secret Body Mist", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=300&h=300&fit=crop", description: "Light and refreshing body spray" },
+        { id: 8, name: "Tom Ford Black Orchid", price: 189.99, originalPrice: 220.00, image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300&h=300&fit=crop", description: "Luxurious unisex fragrance" }
     ],
     'face-care': [
         { id: 9, name: "Cetaphil Daily Facial Cleanser", price: 25.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=300&h=300&fit=crop", description: "Gentle cleanser for all skin types", badge: "Best Seller" },
-        { id: 11, name: "The Ordinary Hyaluronic Acid Serum", price: 18.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&h=300&fit=crop", description: "Intensive hydration serum", badge: "Trending" }
+        { id: 10, name: "Olay Regenerist Micro-Sculpting Cream", price: 78.99, originalPrice: 95.99, image: "https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=300&h=300&fit=crop", description: "Anti-aging moisturizer with peptides" },
+        { id: 11, name: "The Ordinary Hyaluronic Acid Serum", price: 18.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&h=300&fit=crop", description: "Intensive hydration serum", badge: "Trending" },
+        { id: 12, name: "Neutrogena Retinol Oil", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=300&h=300&fit=crop", description: "Anti-aging facial oil" }
     ],
     'hair-beauty': [
         { id: 13, name: "L'Oréal Professional Shampoo", price: 35.99, originalPrice: 45.99, image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=300&h=300&fit=crop", description: "Professional salon-quality shampoo" },
-        { id: 15, name: "Argan Oil Hair Treatment", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1559599189-7d5e31afd857?w=300&h=300&fit=crop", description: "Moroccan argan oil for hair repair" }
+        { id: 14, name: "Dyson Hair Dryer Supersonic", price: 899.99, originalPrice: 1099.99, image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=300&h=300&fit=crop", description: "Fast drying with intelligent heat control", badge: "Premium" },
+        { id: 15, name: "Argan Oil Hair Treatment", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1559599189-7d5e31afd857?w=300&h=300&fit=crop", description: "Moroccan argan oil for hair repair" },
+        { id: 16, name: "Ceramic Hair Straightener", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1457972729786-0411a3b2b626?w=300&h=300&fit=crop", description: "Professional ceramic straightening iron" }
     ],
     'body-care': [
         { id: 17, name: "Body Care Gift Set", price: 67.99, originalPrice: 79.99, image: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=300&h=300&fit=crop", description: "Complete body care routine" },
-        { id: 18, name: "Dove Deep Moisture Body Wash", price: 8.99, originalPrice: 12.99, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=300&fit=crop", description: "Nourishing body wash" }
+        { id: 18, name: "Dove Deep Moisture Body Wash", price: 8.99, originalPrice: 12.99, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=300&fit=crop", description: "Nourishing body wash" },
+        { id: 19, name: "Bath & Body Works Lotion", price: 16.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=300&h=300&fit=crop", description: "Moisturizing body lotion" },
+        { id: 20, name: "Exfoliating Body Scrub", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1588159343745-445ae0ee6b94?w=300&h=300&fit=crop", description: "Sea salt body scrub" }
     ],
     'sexual-wellness': [
         { id: 21, name: "Wellness Intimacy Kit", price: 54.99, originalPrice: 69.99, image: "https://images.unsplash.com/photo-1609205071652-0dfcc8b85dd8?w=300&h=300&fit=crop", description: "Complete wellness and care kit" },
@@ -595,15 +660,21 @@ let productDatabase = {
     ],
     'tv-dvd': [
         { id: 29, name: "Samsung 55\" 4K Smart TV", price: 1299.99, originalPrice: 1599.99, image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=300&h=300&fit=crop", description: "Crystal UHD with Tizen smart platform", badge: "Hot Deal" },
-        { id: 30, name: "Sony Blu-ray DVD Player", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1518855589321-c19800f7d692?w=300&h=300&fit=crop", description: "4K upscaling Blu-ray player" }
+        { id: 30, name: "Sony Blu-ray DVD Player", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1518855589321-c19800f7d692?w=300&h=300&fit=crop", description: "4K upscaling Blu-ray player" },
+        { id: 31, name: "LG OLED 65\" TV", price: 2899.99, originalPrice: 3299.99, image: "https://images.unsplash.com/photo-1567690187548-f07b1d7bf5a9?w=300&h=300&fit=crop", description: "Self-lit pixels for perfect blacks", badge: "Premium" },
+        { id: 32, name: "Universal Remote Control", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1558560557-7dbb98b4b3da?w=300&h=300&fit=crop", description: "Control all your devices" }
     ],
     'audio-music': [
         { id: 33, name: "Bose QuietComfort Headphones", price: 349.99, originalPrice: 399.99, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop", description: "World-class noise cancellation", badge: "Popular" },
+        { id: 34, name: "Marshall Stanmore II Speaker", price: 449.99, originalPrice: 499.99, image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=300&h=300&fit=crop", description: "Iconic rock and roll speaker" },
+        { id: 35, name: "Audio-Technica Turntable", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop", description: "Professional direct-drive turntable" },
         { id: 36, name: "Wireless Earbuds Pro", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=300&h=300&fit=crop", description: "Premium wireless earbuds" }
     ],
     'laptops-computers': [
         { id: 37, name: "MacBook Pro 14\" M3", price: 3499.99, originalPrice: 3799.99, image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=300&fit=crop", description: "Latest M3 chip with 16GB RAM", badge: "New" },
-        { id: 38, name: "Dell XPS 13 Laptop", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=300&h=300&fit=crop", description: "Ultra-thin with InfinityEdge display" }
+        { id: 38, name: "Dell XPS 13 Laptop", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=300&h=300&fit=crop", description: "Ultra-thin with InfinityEdge display" },
+        { id: 39, name: "Gaming Desktop PC RTX 4080", price: 2799.99, originalPrice: 3199.99, image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?w=300&h=300&fit=crop", description: "High-performance gaming rig", badge: "Gaming" },
+        { id: 40, name: "iPad Pro 12.9\"", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=300&h=300&fit=crop", description: "Professional tablet with M2 chip" }
     ],
     'electronics-accessories': [
         { id: 41, name: "Smartphone Accessories Kit", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Complete phone accessory bundle" },
@@ -631,34 +702,33 @@ let productDatabase = {
     ],
     'cars': [
         { id: 53, name: "Toyota Camry 2023", price: 45999.99, originalPrice: 48999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Reliable sedan with hybrid option", badge: "Certified" },
-        { id: 54, name: "Honda Accord 2024", price: 42999.99, originalPrice: 45999.99, image: "https://images.unsplash.com/photo-1580274947049-80561d52b088?w=300&h=300&fit=crop", description: "Comfortable midsize sedan" }
+        { id: 54, name: "Honda Accord 2024", price: 42999.99, originalPrice: 45999.99, image: "https://images.unsplash.com/photo-1580274947049-80561d52b088?w=300&h=300&fit=crop", description: "Comfortable midsize sedan" },
+        { id: 55, name: "BMW 3 Series 2023", price: 78999.99, originalPrice: 82999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Luxury sports sedan", badge: "Luxury" }
     ],
     'motorcycles': [
         { id: 56, name: "Yamaha YZF-R3 2024", price: 8999.99, originalPrice: 9499.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Sport bike for beginners" },
         { id: 57, name: "Honda PCX 150 Scooter", price: 4299.99, originalPrice: 4699.99, image: "https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=300&h=300&fit=crop", description: "Fuel-efficient city scooter", badge: "Eco-Friendly" }
     ],
     'vehicle-parts': [
-        { id: 58, name: "Brake Pad Set", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&h=300&fit=crop", description: "Premium brake pads for Toyota", badge: "Popular" },
+        { id: 58, name: "Car Parts - Brake Pads", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&h=300&fit=crop", description: "Premium brake pads for Toyota" },
         { id: 59, name: "Engine Oil Full Synthetic", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1471880197051-537cea7a1bb8?w=300&h=300&fit=crop", description: "High-performance motor oil" }
     ],
     'trucks-trailers': [
-        { id: 60, name: "Pickup Truck Ford F-150", price: 45999.99, originalPrice: 49999.99, image: "https://images.unsplash.com/photo-1567438999634-8a1cb2d7b149?w=300&h=300&fit=crop", description: "Heavy-duty pickup truck" },
-        { id: 102, name: "Cargo Trailer 16ft", price: 8999.99, originalPrice: 9999.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Heavy-duty cargo trailer", badge: "Commercial" }
+        { id: 60, name: "Pickup Truck Ford F-150", price: 65999.99, originalPrice: 69999.99, image: "https://images.unsplash.com/photo-1567438999634-8a1cb2d7b149?w=300&h=300&fit=crop", description: "Heavy-duty pickup truck" }
     ],
     'buses': [
-        { id: 61, name: "City Bus Mercedes", price: 149999.99, originalPrice: 169999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "Public transportation bus", badge: "Commercial" },
-        { id: 107, name: "Minibus 15 Seater", price: 35999.99, originalPrice: 39999.99, image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=300&h=300&fit=crop", description: "Passenger transport minibus" }
+        { id: 61, name: "City Bus Mercedes", price: 189999.99, originalPrice: 209999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "40-passenger city bus" }
     ],
     'construction-machinery': [
-        { id: 62, name: "Excavator CAT 320", price: 159999.99, originalPrice: 179999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Heavy-duty excavator", badge: "Professional" },
-        { id: 110, name: "Bulldozer D6", price: 299999.99, originalPrice: 329999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Powerful bulldozer for earthmoving" }
+        { id: 62, name: "Excavator CAT 320", price: 299999.99, originalPrice: 329999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Heavy-duty excavator" }
     ],
     'watercraft': [
         { id: 63, name: "Fishing Boat with Motor", price: 15999.99, originalPrice: 17999.99, image: "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=300&h=300&fit=crop", description: "25ft fishing boat with outboard motor" }
     ],
     'food-beverages': [
         { id: 64, name: "Premium Ghanaian Cocoa Powder", price: 24.99, originalPrice: 29.99, image: "https://images.unsplash.com/photo-1511381939415-e44015466834?w=300&h=300&fit=crop", description: "100% pure Ghanaian cocoa", badge: "Local" },
-        { id: 65, name: "Shea Butter (Raw)", price: 18.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1585652757173-57de5e9fab42?w=300&h=300&fit=crop", description: "Unrefined shea butter from Northern Ghana", badge: "Organic" }
+        { id: 65, name: "Shea Butter (Raw)", price: 18.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1585652757173-57de5e9fab42?w=300&h=300&fit=crop", description: "Unrefined shea butter from Northern Ghana", badge: "Organic" },
+        { id: 66, name: "Gari (Cassava Flakes)", price: 12.50, originalPrice: 15.00, image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop", description: "Traditional Ghanaian staple food" }
     ],
     'farm-machinery': [
         { id: 67, name: "John Deere Compact Tractor", price: 25999.99, originalPrice: 28999.99, image: "https://images.unsplash.com/photo-1605371924599-2d0365da1ae0?w=300&h=300&fit=crop", description: "25HP compact utility tractor" },
@@ -671,6 +741,66 @@ let productDatabase = {
     'farm-animals': [
         { id: 71, name: "Dairy Cattle (Holstein)", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1563281577-a7be47e20db9?w=300&h=300&fit=crop", description: "Healthy dairy cow", badge: "Livestock" },
         { id: 72, name: "Chickens (Layer Hens)", price: 25.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=300&h=300&fit=crop", description: "High-producing layer hens" }
+    ],
+    'electronics-accessories': [
+        { id: 73, name: "USB-C Cable 6ft", price: 19.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop", description: "Fast charging USB-C cable" },
+        { id: 74, name: "Wireless Charging Pad", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1515378791036-0648a814c963?w=300&h=300&fit=crop", description: "Fast wireless charging station", badge: "Popular" },
+        { id: 75, name: "Power Bank 20000mAh", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1609592913750-71717ee0ff3b?w=300&h=300&fit=crop", description: "High capacity portable charger" },
+        { id: 76, name: "Phone Car Mount", price: 24.99, originalPrice: 34.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Adjustable smartphone car holder" }
+    ],
+    'computer-accessories': [
+        { id: 77, name: "Mechanical Gaming Keyboard", price: 159.99, originalPrice: 199.99, image: "https://images.unsplash.com/photo-1541140532154-b024d705b90a?w=300&h=300&fit=crop", description: "RGB backlit mechanical keyboard", badge: "Gaming" },
+        { id: 78, name: "Gaming Mouse RGB", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=300&h=300&fit=crop", description: "High precision gaming mouse" },
+        { id: 79, name: "Monitor Stand Dual", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1616627547584-bf28cfeea7d5?w=300&h=300&fit=crop", description: "Adjustable dual monitor stand" },
+        { id: 80, name: "USB Hub 7-Port", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "High-speed USB 3.0 hub" }
+    ],
+    'networking': [
+        { id: 81, name: "WiFi 6 Router AX6000", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "High-speed WiFi 6 router", badge: "New" },
+        { id: 82, name: "Mesh WiFi System 3-Pack", price: 449.99, originalPrice: 549.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "Whole home mesh coverage" },
+        { id: 83, name: "Ethernet Switch 8-Port", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1516110833967-0b5716ca75d4?w=300&h=300&fit=crop", description: "Gigabit Ethernet switch" },
+        { id: 84, name: "WiFi Range Extender", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "Boost your WiFi signal" }
+    ],
+    'printers-scanners': [
+        { id: 85, name: "Canon PIXMA All-in-One Printer", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "Print, scan, copy wireless printer" },
+        { id: 86, name: "HP LaserJet Pro Printer", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "Fast laser printer for office", badge: "Professional" },
+        { id: 87, name: "Document Scanner Portable", price: 229.99, originalPrice: 279.99, image: "https://images.unsplash.com/photo-1589739900243-c0b20dc6c35f?w=300&h=300&fit=crop", description: "High-speed document scanner" },
+        { id: 88, name: "Photo Printer Professional", price: 449.99, originalPrice: 549.99, image: "https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?w=300&h=300&fit=crop", description: "High-quality photo printing" }
+    ],
+    'security-surveillance': [
+        { id: 89, name: "Security Camera System 8CH", price: 599.99, originalPrice: 699.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Complete 8-camera security system", badge: "Professional" },
+        { id: 90, name: "Wireless Security Camera", price: 149.99, originalPrice: 179.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "WiFi security camera with night vision" },
+        { id: 91, name: "Smart Doorbell Camera", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1586281010595-c1bda2c5cf15?w=300&h=300&fit=crop", description: "Video doorbell with 2-way audio" },
+        { id: 92, name: "Motion Sensor Alarm", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Wireless motion detection system" }
+    ],
+    'computer-hardware': [
+        { id: 93, name: "Graphics Card RTX 4070", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&h=300&fit=crop", description: "High-performance graphics card", badge: "Gaming" },
+        { id: 94, name: "32GB DDR5 RAM Kit", price: 349.99, originalPrice: 399.99, image: "https://images.unsplash.com/photo-1555617981-dac3880eac6e?w=300&h=300&fit=crop", description: "High-speed memory kit" },
+        { id: 95, name: "NVMe SSD 2TB", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?w=300&h=300&fit=crop", description: "Ultra-fast storage drive" },
+        { id: 96, name: "CPU Cooler RGB", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=300&h=300&fit=crop", description: "Liquid cooling system with RGB" }
+    ],
+    'vehicle-parts': [
+        { id: 97, name: "Car Engine Oil 5W-30", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=300&h=300&fit=crop", description: "Premium synthetic motor oil" },
+        { id: 98, name: "Brake Pad Set", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1632277646967-9a65e96d7e12?w=300&h=300&fit=crop", description: "High-performance brake pads", badge: "Popular" },
+        { id: 99, name: "Car Battery 12V", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1569687499547-bd2bc23d66bb?w=300&h=300&fit=crop", description: "Long-lasting car battery" },
+        { id: 100, name: "LED Headlight Kit", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1571019613540-996a0dba5ba6?w=300&h=300&fit=crop", description: "Bright LED headlight conversion" }
+    ],
+    'trucks-trailers': [
+        { id: 101, name: "Pickup Truck Ford F-150", price: 45999.99, originalPrice: 49999.99, image: "https://images.unsplash.com/photo-1563720223185-11003d516935?w=300&h=300&fit=crop", description: "Heavy-duty pickup truck" },
+        { id: 102, name: "Cargo Trailer 16ft", price: 8999.99, originalPrice: 9999.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Heavy-duty cargo trailer", badge: "Commercial" },
+        { id: 103, name: "Semi Truck Volvo", price: 89999.99, originalPrice: 99999.99, image: "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=300&h=300&fit=crop", description: "Professional semi truck" },
+        { id: 104, name: "Utility Trailer", price: 5999.99, originalPrice: 6999.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Multi-purpose utility trailer" }
+    ],
+    'buses': [
+        { id: 105, name: "School Bus 72 Passenger", price: 75999.99, originalPrice: 85999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "Safe school transportation" },
+        { id: 106, name: "City Transit Bus", price: 149999.99, originalPrice: 169999.99, image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=300&h=300&fit=crop", description: "Public transportation bus", badge: "Commercial" },
+        { id: 107, name: "Minibus 15 Seater", price: 35999.99, originalPrice: 39999.99, image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=300&h=300&fit=crop", description: "Passenger transport minibus" },
+        { id: 108, name: "Luxury Coach Bus", price: 199999.99, originalPrice: 229999.99, image: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=300&h=300&fit=crop", description: "Premium passenger coach" }
+    ],
+    'construction-machinery': [
+        { id: 109, name: "Excavator CAT 320", price: 159999.99, originalPrice: 179999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Heavy-duty excavator", badge: "Professional" },
+        { id: 110, name: "Bulldozer D6", price: 299999.99, originalPrice: 329999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Powerful bulldozer for earthmoving" },
+        { id: 111, name: "Concrete Mixer Truck", price: 89999.99, originalPrice: 99999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Ready-mix concrete delivery" },
+        { id: 112, name: "Crane Mobile 25T", price: 199999.99, originalPrice: 219999.99, image: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=300&h=300&fit=crop", description: "Mobile construction crane" }
     ]
 };
 
@@ -678,8 +808,6 @@ let productDatabase = {
 class ProductDatabaseSync {
     constructor() {
         this.storageKey = 'donkomi-product-database';
-        this.versionKey = 'donkomi-db-version';
-        this.dbVersion = '2'; // bump this to reset stale localStorage
         this.init();
     }
 
@@ -689,38 +817,32 @@ class ProductDatabaseSync {
     }
 
     loadFromStorage() {
-        // If the stored version doesn't match, wipe old data and use fresh defaults
-        const storedVersion = localStorage.getItem(this.versionKey);
-        if (storedVersion !== this.dbVersion) {
-            console.log('📦 DB version changed — resetting to slim defaults');
-            localStorage.removeItem(this.storageKey);
-            localStorage.setItem(this.versionKey, this.dbVersion);
-            this.saveToStorage();
-            return;
-        }
-
         const savedDatabase = localStorage.getItem(this.storageKey);
         if (savedDatabase) {
             try {
-                productDatabase = JSON.parse(savedDatabase);
-                console.log('� Product database loaded:', Object.keys(productDatabase).length, 'categories');
+                const parsedDatabase = JSON.parse(savedDatabase);
+                // Replace with stored database to get latest products from admin
+                productDatabase = parsedDatabase;
+                console.log('📦 MAIN WEBSITE: Product database loaded from localStorage:', Object.keys(productDatabase).length, 'categories');
+                
+                // Count total products
+                let totalProducts = 0;
+                Object.keys(productDatabase).forEach(category => {
+                    totalProducts += productDatabase[category].length;
+                });
+                console.log('📊 MAIN WEBSITE: Total products loaded:', totalProducts);
             } catch (error) {
-                console.error('❌ Error loading product database:', error);
+                console.error('❌ MAIN WEBSITE: Error loading product database from localStorage:', error);
             }
         } else {
-            console.log('📦 No stored database — using slim defaults');
-            this.saveToStorage();
+            console.log('📦 MAIN WEBSITE: No stored database found, using default products');
         }
     }
 
     saveToStorage() {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(productDatabase));
-            // Broadcast to all tabs/windows including same tab
-            if (this.channel) {
-                this.channel.postMessage({ type: 'products-updated', database: productDatabase });
-            }
-            console.log('💾 Product database saved and broadcast');
+            console.log('💾 Product database saved to localStorage');
         } catch (error) {
             console.error('❌ Error saving product database to localStorage:', error);
         }
@@ -842,37 +964,22 @@ class ProductDatabaseSync {
     }
 
     setupStorageListener() {
-        // BroadcastChannel for real-time same-tab and cross-tab sync
-        if (typeof BroadcastChannel !== 'undefined') {
-            this.channel = new BroadcastChannel('donkomi-products');
-            this.channel.onmessage = (e) => {
-                if (e.data && e.data.type === 'products-updated') {
-                    productDatabase = e.data.database;
-                    console.log('🔄 Product database updated via BroadcastChannel');
-                    if (typeof displayProducts === 'function') {
-                        displayProducts(currentCategory || 'all');
-                    }
-                    if (typeof updateCategoryStats === 'function') {
-                        updateCategoryStats();
-                    }
-                    showProductUpdateNotification();
-                }
-            };
-        }
-
-        // Fallback: storage event for browsers without BroadcastChannel
+        // Listen for storage changes from admin portal
         window.addEventListener('storage', (e) => {
             if (e.key === this.storageKey && e.newValue) {
                 try {
-                    productDatabase = JSON.parse(e.newValue);
+                    const newDatabase = JSON.parse(e.newValue);
+                    // Replace entire database instead of merging
+                    productDatabase = newDatabase;
                     console.log('🔄 Product database updated from storage event');
+                    
+                    // Trigger UI updates
                     if (typeof displayProducts === 'function') {
-                        displayProducts(currentCategory || 'all');
+                        displayProducts('all');
                     }
                     if (typeof updateCategoryStats === 'function') {
                         updateCategoryStats();
                     }
-                    showProductUpdateNotification();
                 } catch (error) {
                     console.error('❌ Error parsing storage update:', error);
                 }
@@ -1378,13 +1485,127 @@ function updateCategoryStats() {
 // Initialize category stats
 updateCategoryStats();
 
+// Wishlist functionality
+class Wishlist {
+    constructor() {
+        this.items = [];
+        this.storageKey = 'donkomi-wishlist';
+        this.loadFromStorage();
+    }
+    
+    loadFromStorage() {
+        const saved = localStorage.getItem(this.storageKey);
+        if (saved) {
+            try {
+                this.items = JSON.parse(saved);
+            } catch (e) {
+                this.items = [];
+            }
+        }
+    }
+    
+    saveToStorage() {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.items));
+    }
+    
+    isInWishlist(productId) {
+        return this.items.some(item => item.id === productId);
+    }
+    
+    toggle(product) {
+        if (this.isInWishlist(product.id)) {
+            this.remove(product.id);
+            return false;
+        } else {
+            this.add(product);
+            return true;
+        }
+    }
+    
+    add(product) {
+        if (!this.isInWishlist(product.id)) {
+            this.items.push(product);
+            this.saveToStorage();
+            if (window.cart) {
+                window.cart.showNotification('Added to wishlist!', 'success');
+            }
+        }
+    }
+    
+    remove(productId) {
+        this.items = this.items.filter(item => item.id !== productId);
+        this.saveToStorage();
+        if (window.cart) {
+            window.cart.showNotification('Removed from wishlist', 'info');
+        }
+    }
+    
+    getAll() {
+        return this.items;
+    }
+}
+
+// Initialize wishlist
+const wishlist = new Wishlist();
+window.wishlist = wishlist;
+
+// Toggle wishlist function
+function toggleWishlist(productId, category, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    
+    // Find the product
+    let product = null;
+    if (window.productSync) {
+        const allProducts = window.productSync.getAllProducts();
+        product = allProducts.find(p => p.id === productId);
+    } else if (productDatabase[category]) {
+        product = productDatabase[category].find(p => p.id === productId);
+    }
+    
+    if (product) {
+        const added = wishlist.toggle({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            image: product.image,
+            category: category
+        });
+        
+        // Update the heart icon
+        const heartBtn = event?.target?.closest('.wishlist-btn');
+        if (heartBtn) {
+            const icon = heartBtn.querySelector('i');
+            if (added) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                heartBtn.classList.add('active');
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                heartBtn.classList.remove('active');
+            }
+        }
+    }
+}
+
+window.toggleWishlist = toggleWishlist;
+
 // Product generation and display functions
 function generateProductHTML(product, category) {
     const badgeHTML = product.badge ? `<span class="product-badge">${product.badge}</span>` : '';
+    const isInWishlist = wishlist.isInWishlist(product.id);
+    const heartClass = isInWishlist ? 'fas' : 'far';
+    const activeClass = isInWishlist ? 'active' : '';
     
     return `
-        <div class="product-card" data-category="${category}">
+        <div class="product-card" data-category="${category}" data-product-id="${product.id}">
             ${badgeHTML}
+            <button class="wishlist-btn ${activeClass}" onclick="toggleWishlist(${product.id}, '${category}', event)" title="Add to Wishlist" aria-label="Add to wishlist">
+                <i class="${heartClass} fa-heart"></i>
+            </button>
             <div class="product-image">
                 <img src="${product.image}" alt="${product.name}" loading="lazy">
                 <div class="product-overlay">
@@ -1398,7 +1619,9 @@ function generateProductHTML(product, category) {
                     <span class="current-price">₵${product.price.toFixed(2)}</span>
                     ${product.originalPrice ? `<span class="original-price">₵${product.originalPrice.toFixed(2)}</span>` : ''}
                 </div>
-                <button class="add-to-cart" onclick="addProductToCart(${product.id}, '${category}')">Add to Cart</button>
+                <button class="add-to-cart" onclick="addProductToCart(${product.id}, '${category}')">
+                    <i class="fas fa-shopping-cart"></i> Add to Cart
+                </button>
             </div>
         </div>
     `;
@@ -1640,6 +1863,55 @@ function handlePromoClick(type, event) {
 // Make functions globally accessible
 window.handlePromoClick = handlePromoClick;
 window.showDeliveryInfo = showDeliveryInfo;
+
+// Scroll to Top Button Functionality
+function initScrollToTop() {
+    const scrollToTopBtn = document.getElementById('scrollToTop');
+    
+    if (!scrollToTopBtn) return;
+    
+    // Show/hide button based on scroll position
+    window.addEventListener('scroll', () => {
+        if (window.pageYOffset > 300) {
+            scrollToTopBtn.classList.add('visible');
+        } else {
+            scrollToTopBtn.classList.remove('visible');
+        }
+    });
+    
+    // Scroll to top when clicked
+    scrollToTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+}
+
+// Page Loader
+function initPageLoader() {
+    const pageLoader = document.getElementById('pageLoader');
+    
+    if (!pageLoader) return;
+    
+    // Hide loader when page is fully loaded
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            pageLoader.classList.add('hidden');
+        }, 500);
+    });
+    
+    // Fallback: hide loader after 3 seconds max
+    setTimeout(() => {
+        if (pageLoader && !pageLoader.classList.contains('hidden')) {
+            pageLoader.classList.add('hidden');
+        }
+    }, 3000);
+}
+
+// Initialize scroll to top and page loader
+initScrollToTop();
+initPageLoader();
 
 // Show delivery information modal
 function showDeliveryInfo() {

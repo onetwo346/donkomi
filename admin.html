@@ -594,12 +594,19 @@
         </div>
     </div>
 
-    <script src="admin.js"></script>
     <script>
-        // Initialize ProductDatabaseSync for admin panel
+        // Clear stale localStorage login key — auth is session-only
+        localStorage.removeItem('adminLoggedIn');
+
+        // ProductDatabaseSync — must run BEFORE admin.js so window.productSync is ready
         class ProductDatabaseSync {
             constructor() {
                 this.storageKey = 'donkomi-product-database';
+                this.versionKey = 'donkomi-db-version';
+                this.dbVersion = '2';
+                this.channel = typeof BroadcastChannel !== 'undefined'
+                    ? new BroadcastChannel('donkomi-products')
+                    : null;
                 this.init();
             }
 
@@ -609,81 +616,59 @@
 
             loadFromStorage() {
                 try {
+                    const storedVersion = localStorage.getItem(this.versionKey);
+                    if (storedVersion !== this.dbVersion) {
+                        localStorage.removeItem(this.storageKey);
+                        localStorage.setItem(this.versionKey, this.dbVersion);
+                    }
                     const stored = localStorage.getItem(this.storageKey);
                     if (stored) {
-                        const parsedDatabase = JSON.parse(stored);
-                        // Merge with existing database to preserve default products
-                        productDatabase = { ...productDatabase, ...parsedDatabase };
-                        console.log('📦 Admin: Product database loaded from localStorage:', Object.keys(productDatabase).length, 'categories');
-                        
-                        // Count total products
-                        let totalProducts = 0;
-                        Object.keys(productDatabase).forEach(category => {
-                            totalProducts += productDatabase[category].length;
-                        });
-                        console.log('📊 Admin: Total products loaded:', totalProducts);
+                        productDatabase = JSON.parse(stored);
+                        console.log('📦 Admin: Loaded', Object.keys(productDatabase).length, 'categories from storage');
                     } else {
-                        // No stored data, save current default products to localStorage
-                        console.log('📦 Admin: No stored data found, initializing with default products');
-                        this.saveToStorage();
+                        console.log('📦 Admin: No stored data yet — storefront must open first');
                     }
                 } catch (error) {
-                    console.error('❌ Admin: Error loading product database from localStorage:', error);
+                    console.error('❌ Admin: Error loading product database:', error);
                 }
             }
 
             saveToStorage() {
                 try {
                     localStorage.setItem(this.storageKey, JSON.stringify(productDatabase));
-                    console.log('💾 Admin: Product database saved to localStorage');
+                    if (this.channel) {
+                        this.channel.postMessage({ type: 'products-updated', database: productDatabase });
+                    }
+                    console.log('💾 Admin: Saved & broadcast', this.getAllProducts().length, 'products');
                 } catch (error) {
-                    console.error('❌ Admin: Error saving product database to localStorage:', error);
+                    console.error('❌ Admin: Error saving:', error);
                 }
             }
 
             addProduct(product) {
                 const category = product.category;
-                if (!productDatabase[category]) {
-                    productDatabase[category] = [];
-                }
-                
-                // Generate unique ID if not provided
-                if (!product.id) {
-                    product.id = 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                }
-                
+                if (!productDatabase[category]) productDatabase[category] = [];
+                if (!product.id) product.id = 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 productDatabase[category].push(product);
                 this.saveToStorage();
-                console.log('✅ Admin: Product added:', product.name, 'to category:', category);
-                console.log('📊 Admin: Category now has', productDatabase[category].length, 'products');
-                
-                // Trigger storage event manually for same-tab updates
-                this.triggerStorageEvent();
+                console.log('✅ Admin: Added', product.name);
                 return true;
-            }
-            
-            triggerStorageEvent() {
-                // Dispatch storage event to notify main website
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key: this.storageKey,
-                    newValue: JSON.stringify(productDatabase),
-                    url: window.location.href
-                }));
-                console.log('🔔 Admin: Storage event dispatched for main website sync');
             }
 
             updateProduct(productId, updatedProduct) {
                 for (const category in productDatabase) {
-                    const productIndex = productDatabase[category].findIndex(p => p.id === productId);
-                    if (productIndex !== -1) {
-                        // Keep the existing image if no new image provided
-                        if (!updatedProduct.image) {
-                            updatedProduct.image = productDatabase[category][productIndex].image;
+                    const idx = productDatabase[category].findIndex(p => String(p.id) === String(productId));
+                    if (idx !== -1) {
+                        if (!updatedProduct.image) updatedProduct.image = productDatabase[category][idx].image;
+                        productDatabase[category][idx] = { ...productDatabase[category][idx], ...updatedProduct };
+                        // Move to new category if changed
+                        if (updatedProduct.category && updatedProduct.category !== category) {
+                            const moved = productDatabase[category].splice(idx, 1)[0];
+                            if (!productDatabase[updatedProduct.category]) productDatabase[updatedProduct.category] = [];
+                            productDatabase[updatedProduct.category].push(moved);
                         }
-                        productDatabase[category][productIndex] = { ...productDatabase[category][productIndex], ...updatedProduct };
                         this.saveToStorage();
-                        console.log('✅ Admin: Product updated:', updatedProduct.name);
-                        this.triggerStorageEvent();
+                        console.log('✅ Admin: Updated', updatedProduct.name);
                         return true;
                     }
                 }
@@ -692,12 +677,11 @@
 
             deleteProduct(productId) {
                 for (const category in productDatabase) {
-                    const productIndex = productDatabase[category].findIndex(p => p.id === productId);
-                    if (productIndex !== -1) {
-                        const deletedProduct = productDatabase[category].splice(productIndex, 1)[0];
+                    const idx = productDatabase[category].findIndex(p => String(p.id) === String(productId));
+                    if (idx !== -1) {
+                        const deleted = productDatabase[category].splice(idx, 1)[0];
                         this.saveToStorage();
-                        console.log('✅ Admin: Product deleted:', deletedProduct.name);
-                        this.triggerStorageEvent();
+                        console.log('✅ Admin: Deleted', deleted.name);
                         return true;
                     }
                 }
@@ -705,14 +689,11 @@
             }
 
             getAllProducts() {
-                const allProducts = [];
+                const all = [];
                 for (const category in productDatabase) {
-                    allProducts.push(...productDatabase[category].map(product => ({
-                        ...product,
-                        category: category
-                    })));
+                    all.push(...productDatabase[category].map(p => ({ ...p, category })));
                 }
-                return allProducts;
+                return all;
             }
 
             getProductsByCategory(category) {
@@ -727,8 +708,6 @@
                 if (!productDatabase[category.name]) {
                     productDatabase[category.name] = [];
                     this.saveToStorage();
-                    console.log('✅ Admin: Category added:', category.name);
-                    this.triggerStorageEvent();
                     return true;
                 }
                 return false;
@@ -738,182 +717,19 @@
                 if (productDatabase[categoryName]) {
                     delete productDatabase[categoryName];
                     this.saveToStorage();
-                    console.log('✅ Admin: Category deleted:', categoryName);
-                    this.triggerStorageEvent();
                     return true;
                 }
                 return false;
             }
         }
 
-        // Complete product database with ALL 112 products (identical to main website)
-        let productDatabase = {
-            'vitamins': [
-                { id: 1, name: "Vitamin C 1000mg Tablets", price: 45.99, originalPrice: 65.99, image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop", description: "High-potency Vitamin C for immune support", badge: "Popular" },
-                { id: 2, name: "Omega-3 Fish Oil Capsules", price: 89.99, originalPrice: 120.99, image: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=300&h=300&fit=crop", description: "Premium fish oil for heart health" },
-                { id: 3, name: "Multivitamin for Women", price: 67.50, originalPrice: 85.00, image: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?w=300&h=300&fit=crop", description: "Complete daily nutrition for women" },
-                { id: 4, name: "Vitamin D3 5000 IU", price: 32.99, originalPrice: 42.99, image: "https://images.unsplash.com/photo-1559757175-0eb30cd8c063?w=300&h=300&fit=crop", description: "Bone health and immune support" }
-            ],
-            'fragrances': [
-                { id: 5, name: "Chanel No. 5 Eau de Parfum", price: 299.99, originalPrice: 350.00, image: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=300&h=300&fit=crop", description: "Classic French perfume", badge: "Premium" },
-                { id: 6, name: "Dior Sauvage Men's Cologne", price: 245.00, originalPrice: 280.00, image: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&h=300&fit=crop", description: "Fresh and bold masculine scent" },
-                { id: 7, name: "Victoria's Secret Body Mist", price: 45.99, originalPrice: 55.99, image: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=300&h=300&fit=crop", description: "Light and refreshing body spray" },
-                { id: 8, name: "Tom Ford Black Orchid", price: 189.99, originalPrice: 220.00, image: "https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=300&h=300&fit=crop", description: "Luxurious unisex fragrance" }
-            ],
-            'face-care': [
-                { id: 9, name: "Cetaphil Daily Facial Cleanser", price: 25.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=300&h=300&fit=crop", description: "Gentle cleanser for all skin types", badge: "Best Seller" },
-                { id: 10, name: "Olay Regenerist Micro-Sculpting Cream", price: 78.99, originalPrice: 95.99, image: "https://images.unsplash.com/photo-1570194065650-d99fb4bedf0a?w=300&h=300&fit=crop", description: "Anti-aging moisturizer with peptides" },
-                { id: 11, name: "The Ordinary Hyaluronic Acid Serum", price: 18.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300&h=300&fit=crop", description: "Intensive hydration serum", badge: "Trending" },
-                { id: 12, name: "Neutrogena Retinol Oil", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=300&h=300&fit=crop", description: "Anti-aging facial oil" }
-            ],
-            'hair-beauty': [
-                { id: 13, name: "L'Oréal Professional Shampoo", price: 35.99, originalPrice: 45.99, image: "https://images.unsplash.com/photo-1571875257727-256c39da42af?w=300&h=300&fit=crop", description: "Professional salon-quality shampoo" },
-                { id: 14, name: "Dyson Hair Dryer Supersonic", price: 899.99, originalPrice: 1099.99, image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=300&h=300&fit=crop", description: "Fast drying with intelligent heat control", badge: "Premium" },
-                { id: 15, name: "Argan Oil Hair Treatment", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1559599189-7d5e31afd857?w=300&h=300&fit=crop", description: "Moroccan argan oil for hair repair" },
-                { id: 16, name: "Ceramic Hair Straightener", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1457972729786-0411a3b2b626?w=300&h=300&fit=crop", description: "Professional ceramic straightening iron" }
-            ],
-            'body-care': [
-                { id: 17, name: "Body Care Gift Set", price: 67.99, originalPrice: 79.99, image: "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=300&h=300&fit=crop", description: "Complete body care routine" },
-                { id: 18, name: "Dove Deep Moisture Body Wash", price: 8.99, originalPrice: 12.99, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300&h=300&fit=crop", description: "Nourishing body wash" },
-                { id: 19, name: "Bath & Body Works Lotion", price: 16.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1615397349754-cfa2066a298e?w=300&h=300&fit=crop", description: "Moisturizing body lotion" },
-                { id: 20, name: "Exfoliating Body Scrub", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1588159343745-445ae0ee6b94?w=300&h=300&fit=crop", description: "Sea salt body scrub" }
-            ],
-            'sexual-wellness': [
-                { id: 21, name: "Wellness Intimacy Kit", price: 54.99, originalPrice: 69.99, image: "https://images.unsplash.com/photo-1609205071652-0dfcc8b85dd8?w=300&h=300&fit=crop", description: "Complete wellness and care kit" },
-                { id: 22, name: "Personal Care Products", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1571019613540-996a0dba5ba6?w=300&h=300&fit=crop", description: "Premium personal care items" }
-            ],
-            'oral-care': [
-                { id: 23, name: "Oral-B Electric Toothbrush", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1607613009820-a29f7bb81c04?w=300&h=300&fit=crop", description: "Professional clean with smart timer" },
-                { id: 24, name: "Whitening Toothpaste Set", price: 24.99, originalPrice: 32.99, image: "https://images.unsplash.com/photo-1609840114855-9755dfb8d542?w=300&h=300&fit=crop", description: "Professional whitening system" }
-            ],
-            'makeup': [
-                { id: 25, name: "MAC Lipstick Collection", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=300&h=300&fit=crop", description: "Professional lipstick set", badge: "Trending" },
-                { id: 26, name: "Eyeshadow Palette", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1583241800109-c8e0dea6b465?w=300&h=300&fit=crop", description: "120 color eyeshadow palette" }
-            ],
-            'tools-accessories': [
-                { id: 27, name: "Professional Hair Clipper Set", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=300&h=300&fit=crop", description: "Complete barbering kit" },
-                { id: 28, name: "Manicure Kit Professional", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1599948128421-4d4e4b1f3987?w=300&h=300&fit=crop", description: "Complete nail care set" }
-            ],
-            'electronics-accessories': [
-                { id: 41, name: "Smartphone Accessories Kit", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Complete phone accessory bundle" },
-                { id: 42, name: "Wireless Charger Pad", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1609691174988-9d7ec8d51d82?w=300&h=300&fit=crop", description: "Fast wireless charging pad" },
-                { id: 73, name: "USB-C Cable 6ft", price: 19.99, originalPrice: 24.99, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&h=300&fit=crop", description: "Fast charging USB-C cable" },
-                { id: 74, name: "Wireless Charging Pad", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1515378791036-0648a814c963?w=300&h=300&fit=crop", description: "Fast wireless charging station", badge: "Popular" },
-                { id: 75, name: "Power Bank 20000mAh", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1609592913750-71717ee0ff3b?w=300&h=300&fit=crop", description: "High capacity portable charger" },
-                { id: 76, name: "Phone Car Mount", price: 24.99, originalPrice: 34.99, image: "https://images.unsplash.com/photo-1512499617640-c74ae3a79d37?w=300&h=300&fit=crop", description: "Adjustable smartphone car holder" }
-            ],
-            'computer-accessories': [
-                { id: 43, name: "Wireless Gaming Mouse", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=300&h=300&fit=crop", description: "High-precision gaming mouse" },
-                { id: 44, name: "Mechanical Keyboard RGB", price: 149.99, originalPrice: 179.99, image: "https://images.unsplash.com/photo-1601445638532-3c6f6c3aa1d6?w=300&h=300&fit=crop", description: "Professional gaming keyboard" },
-                { id: 77, name: "Mechanical Gaming Keyboard", price: 159.99, originalPrice: 199.99, image: "https://images.unsplash.com/photo-1541140532154-b024d705b90a?w=300&h=300&fit=crop", description: "RGB backlit mechanical keyboard", badge: "Gaming" },
-                { id: 78, name: "Gaming Mouse RGB", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=300&h=300&fit=crop", description: "High precision gaming mouse" },
-                { id: 79, name: "Monitor Stand Dual", price: 129.99, originalPrice: 159.99, image: "https://images.unsplash.com/photo-1616627547584-bf28cfeea7d5?w=300&h=300&fit=crop", description: "Adjustable dual monitor stand" },
-                { id: 80, name: "USB Hub 7-Port", price: 34.99, originalPrice: 44.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "High-speed USB 3.0 hub" }
-            ],
-            'networking': [
-                { id: 45, name: "WiFi 6 Router", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=300&h=300&fit=crop", description: "High-speed mesh WiFi router" },
-                { id: 46, name: "Network Switch 8-Port", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=300&h=300&fit=crop", description: "Gigabit Ethernet switch" },
-                { id: 81, name: "WiFi 6 Router AX6000", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "High-speed WiFi 6 router", badge: "New" },
-                { id: 82, name: "Mesh WiFi System 3-Pack", price: 449.99, originalPrice: 549.99, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=300&fit=crop", description: "Whole home mesh coverage" },
-                { id: 83, name: "Ethernet Switch 8-Port", price: 89.99, originalPrice: 109.99, image: "https://images.unsplash.com/photo-1516110833967-0b5716ca75d4?w=300&h=300&fit=crop", description: "Gigabit Ethernet switch" },
-                { id: 84, name: "WiFi Range Extender", price: 79.99, originalPrice: 99.99, image: "https://images.unsplash.com/photo-1606904825846-647eb6e8f8b4?w=300&h=300&fit=crop", description: "Boost your WiFi signal" }
-            ],
-            'tv-dvd': [
-                { id: 29, name: "Samsung 55\" 4K Smart TV", price: 1299.99, originalPrice: 1599.99, image: "https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=300&h=300&fit=crop", description: "Crystal UHD with Tizen smart platform", badge: "Hot Deal" },
-                { id: 30, name: "Sony Blu-ray DVD Player", price: 189.99, originalPrice: 229.99, image: "https://images.unsplash.com/photo-1518855589321-c19800f7d692?w=300&h=300&fit=crop", description: "4K upscaling Blu-ray player" },
-                { id: 31, name: "LG OLED 65\" TV", price: 2899.99, originalPrice: 3299.99, image: "https://images.unsplash.com/photo-1567690187548-f07b1d7bf5a9?w=300&h=300&fit=crop", description: "Self-lit pixels for perfect blacks", badge: "Premium" },
-                { id: 32, name: "Universal Remote Control", price: 39.99, originalPrice: 49.99, image: "https://images.unsplash.com/photo-1558560557-7dbb98b4b3da?w=300&h=300&fit=crop", description: "Control all your devices" }
-            ],
-            'audio-music': [
-                { id: 33, name: "Bose QuietComfort Headphones", price: 349.99, originalPrice: 399.99, image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&h=300&fit=crop", description: "World-class noise cancellation", badge: "Popular" },
-                { id: 34, name: "Marshall Stanmore II Speaker", price: 449.99, originalPrice: 499.99, image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=300&h=300&fit=crop", description: "Iconic rock and roll speaker" },
-                { id: 35, name: "Audio-Technica Turntable", price: 299.99, originalPrice: 349.99, image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop", description: "Professional direct-drive turntable" },
-                { id: 36, name: "Wireless Earbuds Pro", price: 199.99, originalPrice: 249.99, image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=300&h=300&fit=crop", description: "Premium wireless earbuds" }
-            ],
-            'laptops-computers': [
-                { id: 37, name: "MacBook Pro 14\" M3", price: 3499.99, originalPrice: 3799.99, image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=300&fit=crop", description: "Latest M3 chip with 16GB RAM", badge: "New" },
-                { id: 38, name: "Dell XPS 13 Laptop", price: 1899.99, originalPrice: 2199.99, image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?w=300&h=300&fit=crop", description: "Ultra-thin with InfinityEdge display" },
-                { id: 39, name: "Gaming Desktop PC RTX 4080", price: 2799.99, originalPrice: 3199.99, image: "https://images.unsplash.com/photo-1587831990711-23ca6441447b?w=300&h=300&fit=crop", description: "High-performance gaming rig", badge: "Gaming" },
-                { id: 40, name: "iPad Pro 12.9\"", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=300&h=300&fit=crop", description: "Professional tablet with M2 chip" }
-            ],
-            'printers-scanners': [],
-            'security-surveillance': [],
-            'computer-hardware': [],
-            'vehicle-parts': [],
-            'cars': [
-                { id: 53, name: "Toyota Camry 2023", price: 45999.99, originalPrice: 48999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Reliable sedan with hybrid option", badge: "Certified" },
-                { id: 54, name: "Honda Accord 2024", price: 42999.99, originalPrice: 45999.99, image: "https://images.unsplash.com/photo-1580274947049-80561d52b088?w=300&h=300&fit=crop", description: "Comfortable midsize sedan" },
-                { id: 55, name: "BMW 3 Series 2023", price: 78999.99, originalPrice: 82999.99, image: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=300&h=300&fit=crop", description: "Luxury sports sedan", badge: "Luxury" }
-            ],
-            'motorcycles': [],
-            'trucks-trailers': [],
-            'buses': [],
-            'construction-machinery': [],
-            'watercraft': [],
-            'food-beverages': [
-                { id: 64, name: "Premium Ghanaian Cocoa Powder", price: 24.99, originalPrice: 29.99, image: "https://images.unsplash.com/photo-1511381939415-e44015466834?w=300&h=300&fit=crop", description: "100% pure Ghanaian cocoa", badge: "Local" },
-                { id: 65, name: "Shea Butter (Raw)", price: 18.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1585652757173-57de5e9fab42?w=300&h=300&fit=crop", description: "Unrefined shea butter from Northern Ghana", badge: "Organic" },
-                { id: 66, name: "Gari (Cassava Flakes)", price: 12.50, originalPrice: 15.00, image: "https://images.unsplash.com/photo-1586201375761-83865001e31c?w=300&h=300&fit=crop", description: "Traditional Ghanaian staple food" }
-            ],
-            'farm-machinery': [],
-            'feeds-supplements': [],
-            'farm-animals': []
-        };
+        // Global product database — populated from localStorage by ProductDatabaseSync
+        let productDatabase = {};
 
-        // Initialize the sync system
+        // Init BEFORE admin.js runs — this makes window.productSync available to AdminPortal
         const productSync = new ProductDatabaseSync();
         window.productSync = productSync;
-        
-        console.log('🔄 Admin: Product sync system initialized');
-        
-        // Test storage event trigger
-        function testStorageSync() {
-            console.log('🧪 ADMIN: Testing storage sync...');
-            console.log('📊 ADMIN: Current products in database:', productSync.getAllProducts().length);
-            
-            // Verify we're using the correct storage key
-            const stored = localStorage.getItem('donkomi-product-database');
-            if (stored) {
-                console.log('✅ ADMIN: Storage key "donkomi-product-database" found with data');
-                try {
-                    const parsed = JSON.parse(stored);
-                    let totalStored = 0;
-                    Object.keys(parsed).forEach(category => {
-                        totalStored += parsed[category].length;
-                    });
-                    console.log('📊 ADMIN: Total products in storage:', totalStored);
-                } catch (e) {
-                    console.error('❌ ADMIN: Error parsing stored data:', e);
-                }
-            } else {
-                console.log('⚠️ ADMIN: Storage key "donkomi-product-database" not found - will create on first product add');
-            }
-        }
-        
-        // Add test product function for debugging
-        function addTestProduct() {
-            const testProduct = {
-                name: "Test Product " + Date.now(),
-                category: "vitamins",
-                price: 19.99,
-                originalPrice: 24.99,
-                description: "This is a test product added by admin",
-                image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop",
-                badge: "Test"
-            };
-            
-            if (window.productSync) {
-                console.log('🧪 ADMIN: Adding test product...');
-                window.productSync.addProduct(testProduct);
-                console.log('✅ ADMIN: Test product added successfully');
-            }
-        }
-        
-        // Make test function globally available
-        window.addTestProduct = addTestProduct;
-        
-        // Run test after a short delay to let everything initialize
-        setTimeout(testStorageSync, 1000);
     </script>
+    <script src="admin.js"></script>
 </body>
 </html>

@@ -72,7 +72,7 @@ class AdminPortal {
     }
 
     checkAuth() {
-        const isLoggedIn = localStorage.getItem('adminLoggedIn') === 'true';
+        const isLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true';
         if (isLoggedIn) {
             this.login();
         }
@@ -84,7 +84,7 @@ class AdminPortal {
 
         // Simple authentication (in real app, this would be server-side)
         if (username === 'admin' && password === 'donkomi2024') {
-            localStorage.setItem('adminLoggedIn', 'true');
+            sessionStorage.setItem('adminLoggedIn', 'true');
             this.login();
         } else {
             this.showNotification('Invalid credentials', 'error');
@@ -93,31 +93,45 @@ class AdminPortal {
 
     login() {
         this.isLoggedIn = true;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('adminDashboard').style.display = 'block';
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminDashboard').classList.remove('hidden');
         this.loadDashboard();
     }
 
     logout() {
         this.isLoggedIn = false;
+        sessionStorage.removeItem('adminLoggedIn');
         localStorage.removeItem('adminLoggedIn');
-        document.getElementById('loginScreen').style.display = 'flex';
-        document.getElementById('adminDashboard').style.display = 'none';
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('adminDashboard').classList.add('hidden');
         document.getElementById('adminLoginForm').reset();
     }
 
     loadData() {
-        // Load products from sync system or localStorage
+        // Load products from sync system (always prefer productSync)
         if (window.productSync) {
             this.products = window.productSync.getAllProducts();
+            this.categories = window.productSync.getCategories().map(name => ({ id: name, name }));
         } else {
-            const savedProducts = localStorage.getItem('donkomi-products');
-            this.products = savedProducts ? JSON.parse(savedProducts) : [];
+            // Fallback: try the shared storage key first, then legacy key
+            const sharedDb = localStorage.getItem('donkomi-product-database');
+            if (sharedDb) {
+                try {
+                    const db = JSON.parse(sharedDb);
+                    this.products = [];
+                    this.categories = [];
+                    for (const cat in db) {
+                        this.categories.push({ id: cat, name: cat });
+                        db[cat].forEach(p => this.products.push({ ...p, category: cat }));
+                    }
+                } catch(e) { this.products = []; this.categories = []; }
+            } else {
+                const savedProducts = localStorage.getItem('donkomi-products');
+                this.products = savedProducts ? JSON.parse(savedProducts) : [];
+                const savedCategories = localStorage.getItem('donkomi-categories');
+                this.categories = savedCategories ? JSON.parse(savedCategories) : [];
+            }
         }
-
-        // Load categories from localStorage
-        const savedCategories = localStorage.getItem('donkomi-categories');
-        this.categories = savedCategories ? JSON.parse(savedCategories) : [];
 
         // Load orders from localStorage
         const savedOrders = localStorage.getItem('donkomi-orders');
