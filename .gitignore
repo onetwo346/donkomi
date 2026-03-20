@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local video files (too large for deploy)
+*.mp4
+*.mov
+*.avi
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Deployment config
+windsurf_deployment.yaml
