@@ -1151,7 +1151,7 @@ function updateActiveCategory(category) {
 }
 
 // Add click events to category navigation
-document.querySelectorAll('.category-btn, .dropdown-content a, .mobile-category-section a, .sidebar-featured-item, .sidebar-category-header, .sidebar-subcategories a, .featured-btn').forEach(element => {
+document.querySelectorAll('.category-btn, .dropdown-content a, .mobile-category-section a, .sidebar-featured-item, .sidebar-category-header, .sidebar-subcategories a, .featured-btn, .mobile-chip').forEach(element => {
     element.addEventListener('click', function(e) {
         e.preventDefault();
         const category = this.dataset.category || this.getAttribute('data-category');
@@ -1174,6 +1174,11 @@ document.querySelectorAll('.category-btn, .dropdown-content a, .mobile-category-
                 item.classList.remove('active');
             });
             this.classList.add('active');
+            
+            // Sync mobile chips
+            document.querySelectorAll('.mobile-chip').forEach(chip => chip.classList.remove('active'));
+            const matchingChip = document.querySelector(`.mobile-chip[data-category="${category}"]`);
+            if (matchingChip) matchingChip.classList.add('active');
             
             // Scroll to products section if clicked from main navigation
             if (this.classList.contains('category-btn') && !this.closest('.sidebar-categories')) {
