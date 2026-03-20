@@ -598,6 +598,45 @@
         // Clear stale localStorage login key — auth is session-only
         localStorage.removeItem('adminLoggedIn');
 
+        // Default product database — mirrors the storefront's productDatabase
+        function getDefaultProductDatabase() {
+            return {
+                'vitamins-supplements': [
+                    { id: 1, name: "Vitamin C 1000mg", price: 29.99, originalPrice: 39.99, image: "https://images.unsplash.com/photo-1550572017-edd951aa8ca6?w=300&h=300&fit=crop", description: "High potency Vitamin C", badge: "Popular" },
+                    { id: 2, name: "Multivitamin Complex", price: 45.99, originalPrice: 59.99, image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&h=300&fit=crop", description: "Complete daily multivitamin" }
+                ],
+                'smartphones': [
+                    { id: 10, name: "Samsung Galaxy A54", price: 1299.99, originalPrice: 1499.99, image: "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=300&h=300&fit=crop", description: "6.4\" AMOLED display", badge: "Hot" },
+                    { id: 11, name: "iPhone 13", price: 3499.99, originalPrice: 3999.99, image: "https://images.unsplash.com/photo-1632661674596-df8be070a5c5?w=300&h=300&fit=crop", description: "Apple iPhone 13 128GB" },
+                    { id: 12, name: "Tecno Spark 10", price: 699.99, originalPrice: 849.99, image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=300&fit=crop", description: "Affordable smartphone", badge: "Value" }
+                ],
+                'laptops': [
+                    { id: 13, name: "HP Laptop 15", price: 2499.99, originalPrice: 2999.99, image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=300&h=300&fit=crop", description: "Intel Core i5, 8GB RAM, 256GB SSD" },
+                    { id: 14, name: "Dell Inspiron 14", price: 2199.99, originalPrice: 2599.99, image: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=300&h=300&fit=crop", description: "Slim and powerful laptop" }
+                ],
+                'cars': [
+                    { id: 30, name: "Toyota Corolla 2020", price: 45000, originalPrice: 52000, image: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=300&h=300&fit=crop", description: "Well maintained, low mileage", badge: "Featured" },
+                    { id: 31, name: "Honda Civic 2019", price: 38000, originalPrice: 44000, image: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=300&h=300&fit=crop", description: "Excellent condition" }
+                ],
+                'food-beverages': [
+                    { id: 64, name: "Premium Ghanaian Cocoa Powder", price: 24.99, originalPrice: 29.99, image: "https://images.unsplash.com/photo-1511381939415-e44015466834?w=300&h=300&fit=crop", description: "100% pure Ghanaian cocoa", badge: "Local" },
+                    { id: 65, name: "Shea Butter (Raw)", price: 18.99, originalPrice: 22.99, image: "https://images.unsplash.com/photo-1585652757173-57de5e9fab42?w=300&h=300&fit=crop", description: "Unrefined shea butter from Northern Ghana", badge: "Organic" }
+                ],
+                'men-clothing': [
+                    { id: 40, name: "African Print Shirt", price: 89.99, originalPrice: 119.99, image: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=300&h=300&fit=crop", description: "Authentic Kente print shirt", badge: "Local" },
+                    { id: 41, name: "Casual Polo Shirt", price: 49.99, originalPrice: 65.99, image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=300&h=300&fit=crop", description: "Comfortable cotton polo" }
+                ],
+                'furniture': [
+                    { id: 50, name: "L-Shaped Sofa Set", price: 2499.99, originalPrice: 3299.99, image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300&h=300&fit=crop", description: "Modern L-shaped sofa", badge: "Sale" },
+                    { id: 51, name: "Queen Bed Frame", price: 899.99, originalPrice: 1199.99, image: "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=300&h=300&fit=crop", description: "Solid wood queen bed frame" }
+                ],
+                'tools-accessories': [
+                    { id: 73, name: "Power Drill Set", price: 299.99, originalPrice: 379.99, image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=300&h=300&fit=crop", description: "18V cordless drill with accessories" },
+                    { id: 74, name: "Hand Tool Kit", price: 149.99, originalPrice: 199.99, image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=300&h=300&fit=crop", description: "Complete 50-piece hand tool set" }
+                ]
+            };
+        }
+
         // ProductDatabaseSync — must run BEFORE admin.js so window.productSync is ready
         class ProductDatabaseSync {
             constructor() {
@@ -626,10 +665,26 @@
                         productDatabase = JSON.parse(stored);
                         console.log('📦 Admin: Loaded', Object.keys(productDatabase).length, 'categories from storage');
                     } else {
-                        console.log('📦 Admin: No stored data yet — storefront must open first');
+                        // Seed with default products so admin always has data
+                        productDatabase = getDefaultProductDatabase();
+                        localStorage.setItem(this.storageKey, JSON.stringify(productDatabase));
+                        console.log('📦 Admin: Seeded default products —', Object.keys(productDatabase).length, 'categories');
                     }
                 } catch (error) {
                     console.error('❌ Admin: Error loading product database:', error);
+                }
+
+                // Listen for live updates from storefront
+                if (this.channel) {
+                    this.channel.onmessage = (e) => {
+                        if (e.data && e.data.type === 'products-updated') {
+                            productDatabase = e.data.database;
+                            console.log('🔄 Admin: Live update received from storefront');
+                            if (window.adminPortal && typeof window.adminPortal.loadDashboard === 'function') {
+                                window.adminPortal.loadDashboard();
+                            }
+                        }
+                    };
                 }
             }
 

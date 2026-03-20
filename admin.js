@@ -1302,4 +1302,5 @@ function goToWebsite() {
 let adminPortal;
 document.addEventListener('DOMContentLoaded', function() {
     adminPortal = new AdminPortal();
+    window.adminPortal = adminPortal;
 });
